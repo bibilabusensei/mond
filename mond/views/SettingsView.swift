@@ -83,10 +83,16 @@ struct SettingsView: View {
                     } label: {
                         Label(L("Apple Intelligence Diagnostics"), systemImage: "brain.head.profile")
                     }
+
+                    NavigationLink {
+                        GestaltEditCompatibilityView()
+                    } label: {
+                        Label(L("GestaltEdit AI Mode"), systemImage: "checkmark.shield")
+                    }
                 } header: {
                     Label(L("Diagnostics"), systemImage: "stethoscope")
                 } footer: {
-                    Text(L("Read MobileGestalt identity values and attempt a read-only inspection of eligibilityd to locate the remaining Apple Intelligence eligibility failure."))
+                    Text(L("Read MobileGestalt identity values, diagnose Apple Intelligence eligibility, or apply the GestaltEdit-compatible US AI region patch."))
                 }
                 
                 Section {
@@ -177,6 +183,7 @@ struct SettingsView: View {
                     CreditsRow(name: "forcequit", role: L("The bad_query exploit"), profile: URL(string: "https://github.com/forcequitOS")!)
                     CreditsRow(name: "johnny", role: L("MCM bug research"), profile: URL(string: "https://github.com/0xjohnnydev")!)
                     CreditsRow(name: "jailbreak.party", role: "PartyUI, GestaltView", profile: URL(string: "https://github.com/jailbreakdotparty")!)
+                    CreditsRow(name: "frs0n / GestaltEdit", role: "Siri AI US-region reference implementation / Siri AI 美国区参考实现", profile: URL(string: "https://github.com/frs0n/GestaltEdit")!)
                     CreditsRow(name: "bibilabusensei", role: "Chinese localization & feature optimization / 汉化与功能优化", profile: URL(string: "https://github.com/bibilabusensei")!)
                     CreditsRow(name: "ChatGPT", role: "AI-assisted development & debugging / AI 协助开发与调试", profile: URL(string: "https://github.com/openai")!)
                 } header: {
