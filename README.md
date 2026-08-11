@@ -5,6 +5,10 @@
 <h1 align="left">mond</h1>
 <p align="left">Edit MobileGestalt in iOS 27.0 beta 1 - beta 4!</p>
 
+**Custom fork additions:**<br>
+&#45; Device Region Identity editor with presets and manual Regulatory Model / Region Code / Region Info / Product Type<br>
+&#45; Read-back verification after writing MobileGestalt values<br>
+
 **Coming soon:**<br>
 &#45; HouseArrest file browser (iOS 18 - 27?)
 
