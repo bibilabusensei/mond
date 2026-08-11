@@ -14,6 +14,7 @@ struct SettingsView: View {
     
     @AppStorage("token") private var token: String = ""
     @AppStorage("method") private var method: String = "bad_query"
+    @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
     @State private var show_confirm: Bool = false
     
     var valid: Bool {
@@ -45,7 +46,7 @@ struct SettingsView: View {
                             VStack(alignment: .leading) {
                                 Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
                                      ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
-                                     ?? "未知应用")
+                                     ?? L("Unknown App"))
                                 .font(.headline)
                                 
                                 Text("\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")")
@@ -63,17 +64,29 @@ struct SettingsView: View {
                     }
                     .foregroundColor(.primary)
                 }
+
+                Section {
+                    Picker("App Language", selection: $appLanguageRaw) {
+                        ForEach(AppLanguage.allCases) { language in
+                            Text(language.displayName).tag(language.rawValue)
+                        }
+                    }
+                } header: {
+                    Label("Language", systemImage: "globe")
+                } footer: {
+                    Text("Changes the Mond interface language only. It does not change the iPhone system language, region, or Siri language.")
+                }
                 
                 Section {
                     LogView()
                         .modifier(TerminalPlatter())
                 } header: {
-                    Label("日志", systemImage: "apple.terminal")
+                    Label("Logs", systemImage: "apple.terminal")
                 }
                 
                 Section {
                     HStack {
-                        TextField("沙盒扩展令牌", text: $token)
+                        TextField("Sandbox Extension Token", text: $token)
                         
                         Spacer()
                         
@@ -84,41 +97,41 @@ struct SettingsView: View {
                         }
                     }
                     .contextMenu {
-                        Text("类别：\(token.split(separator: ";").first { $0.contains("com.apple") }.map(String.init) ?? "无")")
-                        Text("路径：\(token.split(separator: ";").last.map(String.init) ?? "无")")
+                        Text("\(L("Class")): \(token.split(separator: ";").first { $0.contains("com.apple") }.map(String.init) ?? L("N/A"))")
+                        Text("\(L("Path")): \(token.split(separator: ";").last.map(String.init) ?? L("N/A"))")
                         
                         Button {
                             UIPasteboard.general.string = token
                         } label: {
-                            Label("复制令牌", systemImage: "doc.on.doc")
+                            Label("Copy token", systemImage: "doc.on.doc")
                         }
                     }
                     .lineLimit(1)
                     
                     Button {
-                        token = sandbox_extension_issue_file(path: TweakPaths.gestalt_dir) ?? "获取令牌失败"
+                        token = sandbox_extension_issue_file(path: TweakPaths.gestalt_dir) ?? L("Failed to get token.")
                     } label: {
-                        Text("生成令牌")
+                        Text("Generate Token")
                     }
                     .disabled(!state.exploit_succeeded)
                 } header: {
-                    Label("令牌", systemImage: "key")
+                    Label("Token", systemImage: "key")
                 } footer: {
-                    if !token.isEmpty && token != "获取令牌失败" {
+                    if !token.isEmpty {
                         if valid {
-                            Text("当前沙盒令牌有效。")
+                            Text("Your sandbox token is valid.")
                         } else {
-                            Text("当前沙盒令牌无效。")
+                            Text("Your sandbox token is invalid.")
                         }
                     }
                     
                     if !state.exploit_succeeded {
-                        Text("漏洞利用没有成功，因此这里已禁用。请确认当前 iOS 版本是否受支持。")
+                        Text("Disabled because the exploit failed. Is your iOS version supported?")
                     }
                 }
                 
                 Section {
-                    Picker("利用方式", selection: $method) {
+                    Picker("Method", selection: $method) {
                         Text("bad_query").tag("bad_query")
                         Text("cmg").tag("cmg")
                     }
@@ -127,57 +140,57 @@ struct SettingsView: View {
                     Button {
                         _ = grant_mg_write()
                     } label: {
-                        Text("运行漏洞利用")
+                        Text("Run Exploit")
                     }
                 } header: {
-                    Label("漏洞利用", systemImage: "wrench.and.screwdriver")
+                    Label("Exploit", systemImage: "wrench.and.screwdriver")
                 } footer: {
                     Text(method == "cmg"
-                         ? "**CMG：** 支持 iOS 27.0 beta 1 - beta 4。正常情况下优先使用 bad_query；如果 bad_query 无法写入，可再尝试 CMG。"
-                         : "**bad_query：** 支持 iOS 27.0 beta 1 - beta 4。作者：[forcequit](https://github.com/forcequitOS)。")
+                         ? L("CMG supports iOS 27.0 beta 1 through beta 4. Normally prefer bad_query; try CMG if bad_query cannot write.")
+                         : L("bad_query supports iOS 27.0 beta 1 through beta 4. By forcequit."))
                 }
                 
                 Section {
                     Button {
                         show_confirm = true
                     } label: {
-                        Text("注销桌面（Respring）")
+                        Text("Respring")
                     }
                 } header: {
-                    Label("工具", systemImage: "wrench.and.screwdriver")
+                    Label("Tools", systemImage: "wrench.and.screwdriver")
                 }
                 
                 Section {
-                    CreditsRow(name: "roooot", role: "Mond 主要开发者", profile: URL(string: "https://github.com/rooootdev")!)
-                    CreditsRow(name: "forcequit", role: "bad_query 漏洞利用", profile: URL(string: "https://github.com/forcequitOS")!)
-                    CreditsRow(name: "johnny", role: "MCM 漏洞相关研究", profile: URL(string: "https://github.com/0xjohnnydev")!)
-                    CreditsRow(name: "jailbreak.party", role: "PartyUI、GestaltView", profile: URL(string: "https://github.com/jailbreakdotparty")!)
+                    CreditsRow(name: "roooot", role: L("Main developer"), profile: URL(string: "https://github.com/rooootdev")!)
+                    CreditsRow(name: "forcequit", role: L("The bad_query exploit"), profile: URL(string: "https://github.com/forcequitOS")!)
+                    CreditsRow(name: "johnny", role: L("MCM bug research"), profile: URL(string: "https://github.com/0xjohnnydev")!)
+                    CreditsRow(name: "jailbreak.party", role: "PartyUI, GestaltView", profile: URL(string: "https://github.com/jailbreakdotparty")!)
                 } header: {
-                    Label("致谢", systemImage: "person.3.fill")
+                    Label("Credits", systemImage: "person.3.fill")
                 }
             }
-            .navigationTitle("设置")
+            .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack {
                         Button {
                             dismiss()
                         } label: {
-                            Text("完成")
+                            Text("Done")
                         }
                     }
                 }
             }
-            .alert("确定要注销桌面吗？", isPresented: $show_confirm) {
-                Button("取消") {
+            .alert("Are you sure?", isPresented: $show_confirm) {
+                Button("Cancel") {
                     show_confirm = false
                 }
                 
-                Button("确认") {
+                Button("Confirm") {
                     state.respring()
                 }
             } message: {
-                Text("这会重新加载 iOS 桌面，用于让部分 MobileGestalt 修改生效。")
+                Text("Confirm that you want to respring. This reloads the iOS interface so some MobileGestalt changes can take effect.")
             }
         }
     }
