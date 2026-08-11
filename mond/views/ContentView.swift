@@ -401,9 +401,6 @@ struct ContentView: View {
         case "us":
             custom_region_code = "LL"
             custom_region_info = "LL/A"
-            if let model = us_regulatory_model(for: custom_product_type.isEmpty ? machine_name() : custom_product_type) {
-                custom_regulatory_model = model
-            }
         case "hk":
             custom_region_code = "ZP"
             custom_region_info = "ZP/A"
@@ -414,19 +411,93 @@ struct ContentView: View {
             custom_region_code = "CH"
             custom_region_info = "CH/A"
         default:
-            break
+            return
+        }
+
+        let productType = custom_product_type.isEmpty ? machine_name() : custom_product_type
+        if let model = regulatory_model(for: productType, preset: preset) {
+            custom_regulatory_model = model
         }
     }
 
-    private func us_regulatory_model(for productType: String) -> String? {
+    private func regulatory_model(for productType: String, preset: String) -> String? {
         switch productType {
-        case "iPhone16,1": return "A2848"
-        case "iPhone16,2": return "A2849"
-        case "iPhone17,3": return "A3081"
-        case "iPhone17,4": return "A3082"
-        case "iPhone17,1": return "A3083"
-        case "iPhone17,2": return "A3084"
-        default: return nil
+        case "iPhone16,1": // iPhone 15 Pro
+            switch preset {
+            case "us": return "A2848"
+            case "jp": return "A3101"
+            case "hk", "cn": return "A3104"
+            default: return nil
+            }
+        case "iPhone16,2": // iPhone 15 Pro Max
+            switch preset {
+            case "us": return "A2849"
+            case "jp": return "A3105"
+            case "hk", "cn": return "A3108"
+            default: return nil
+            }
+        case "iPhone17,3": // iPhone 16
+            switch preset {
+            case "us": return "A3081"
+            case "jp": return "A3286"
+            case "hk", "cn": return "A3288"
+            default: return nil
+            }
+        case "iPhone17,4": // iPhone 16 Plus
+            switch preset {
+            case "us": return "A3082"
+            case "jp": return "A3289"
+            case "hk", "cn": return "A3291"
+            default: return nil
+            }
+        case "iPhone17,1": // iPhone 16 Pro
+            switch preset {
+            case "us": return "A3083"
+            case "jp": return "A3292"
+            case "hk", "cn": return "A3294"
+            default: return nil
+            }
+        case "iPhone17,2": // iPhone 16 Pro Max
+            switch preset {
+            case "us": return "A3084"
+            case "jp": return "A3295"
+            case "hk", "cn": return "A3297"
+            default: return nil
+            }
+        case "iPhone18,3": // iPhone 17
+            switch preset {
+            case "us": return "A3258"
+            case "jp": return "A3519"
+            case "cn": return "A3521"
+            case "hk": return "A3520"
+            default: return nil
+            }
+        case "iPhone18,1": // iPhone 17 Pro
+            switch preset {
+            case "us": return "A3256"
+            case "jp": return "A3522"
+            case "cn": return "A3524"
+            case "hk": return "A3523"
+            default: return nil
+            }
+        case "iPhone18,2": // iPhone 17 Pro Max
+            switch preset {
+            case "us": return "A3257"
+            case "jp": return "A3525"
+            case "cn": return "A3527"
+            case "hk": return "A3526"
+            default: return nil
+            }
+        case "iPhone18,4": // iPhone Air
+            switch preset {
+            case "us": return "A3260"
+            case "jp": return "A3516"
+            case "cn": return "A3518"
+            case "hk": return "A3517"
+            default: return nil
+            }
+        default:
+            return nil
         }
     }
 
