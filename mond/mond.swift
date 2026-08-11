@@ -40,9 +40,14 @@ struct mond: App {
         WindowGroup {
             ContentView()
                 .environmentObject(state)
+                // App 内固定使用简体中文，不影响 iPhone 系统语言和 Siri 语言。
+                .environment(\.locale, Locale(identifier: "zh-Hans"))
                 .onAppear() {
                     if !is_supported() {
-                        Alertinator.shared.alert(title: "Not supported!", body: "Your iOS version may not be supported by mond.\nMond only supports iOS 27.0 beta 1 - beta 4.")
+                        Alertinator.shared.alert(
+                            title: "当前系统版本可能不受支持",
+                            body: "Mond 目前仅支持 iOS 27.0 beta 1 到 beta 4。继续使用前请确认系统版本。"
+                        )
                     }
                 }
                 .overlay {
