@@ -217,7 +217,13 @@ struct ContentView: View {
                     }
 
                     TextField("Regulatory Model (e.g. A2848)", text: $custom_regulatory_model)
-                    TextField("Retail Model Base (e.g. MTQ83)", text: $custom_model_number)
+                    HStack {
+                        Text("Detected Retail Model Base")
+                        Spacer()
+                        Text(custom_model_number.isEmpty ? L("(missing)") : custom_model_number)
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
                     TextField("Region Code (e.g. LL)", text: $custom_region_code)
                     TextField("Region Info (e.g. LL/A)", text: $custom_region_info)
                     TextField("Product Type (e.g. iPhone16,1)", text: $custom_product_type)
@@ -543,16 +549,12 @@ struct ContentView: View {
     private func apply_custom_identity() {
         do {
             let model = custom_regulatory_model.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            let retailModel = custom_model_number.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
             let regionCode = custom_region_code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
             let regionInfo = custom_region_info.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
             let productType = custom_product_type.trimmingCharacters(in: .whitespacesAndNewlines)
 
             if !model.isEmpty && model.range(of: #"^A[0-9]{4}$"#, options: .regularExpression) == nil {
                 throw MGViewError.invalidIdentity(L("Regulatory Model must look like A2848 (A followed by four digits), or be left empty to keep the current value."))
-            }
-            if !retailModel.isEmpty && retailModel.range(of: #"^[A-Z0-9]{5}$"#, options: .regularExpression) == nil {
-                throw MGViewError.invalidIdentity("Retail Model Base must contain exactly five letters/numbers, for example MTQ83.")
             }
             if regionCode.range(of: #"^[A-Z0-9]{1,4}$"#, options: .regularExpression) == nil {
                 throw MGViewError.invalidIdentity(L("Region Code must contain 1-4 uppercase letters/numbers, for example LL, ZP, J or CH."))
@@ -573,9 +575,6 @@ struct ContentView: View {
             cache_extra[sysconfigRegionInfoKey] = regionInfo
             if !model.isEmpty {
                 cache_extra[regulatoryModelKey] = model
-            }
-            if !retailModel.isEmpty {
-                cache_extra[modelNumberKey] = retailModel
             }
             if !productType.isEmpty {
                 cache_extra[productTypeKey] = productType
@@ -603,7 +602,7 @@ struct ContentView: View {
             let legacyOK = verifiedCache[legacyRegionInfoKey] as? String == regionInfo
             let sysconfigOK = verifiedCache[sysconfigRegionInfoKey] as? String == regionInfo
             let modelOK = model.isEmpty || verifiedCache[regulatoryModelKey] as? String == model
-            let retailOK = retailModel.isEmpty || verifiedCache[modelNumberKey] as? String == retailModel
+            let retailOK = true // ModelNumber is detected/read-only; do not write it back.
             let productOK = productType.isEmpty || verifiedCache[productTypeKey] as? String == productType
             let marketOK: Bool
             if spoof_non_china_market {
@@ -618,7 +617,7 @@ struct ContentView: View {
                 throw MGViewError.identityVerificationFailed
             }
 
-            let retailDisplay = retailModel.isEmpty ? L("model unchanged") : "\(retailModel)\(regionInfo)"
+            let retailDisplay = custom_model_number.isEmpty ? L("model unchanged") : "\(custom_model_number)\(regionInfo)"
             identity_status = "\(L("Verified")): \(model.isEmpty ? L("model unchanged") : model) · \(retailDisplay) · \(regionCode) · \(productType.isEmpty ? L("ProductType unchanged") : productType)"
             print("(identity) verified RegulatoryModel=\(model.isEmpty ? "unchanged" : model), RetailModel=\(retailDisplay), RegionCode=\(regionCode), RegionInfo=\(regionInfo), ProductType=\(productType.isEmpty ? "unchanged" : productType), nonChinaMarket=\(spoof_non_china_market)")
             mg_load()
