@@ -21,8 +21,25 @@ struct ContentView: View {
     @State private var og_devicename: String = ""
     @State private var enable_devicename: Bool = false
     @State private var product_type: String = ""
+
+    @State private var identity_preset: String = "custom"
+    @State private var custom_regulatory_model: String = ""
+    @State private var custom_region_code: String = ""
+    @State private var custom_region_info: String = ""
+    @State private var custom_product_type: String = ""
+    @State private var legacy_region_info: String = ""
+    @State private var sysconfig_region_info: String = ""
+    @State private var activation_region_info: String = ""
+    @State private var identity_status: String = ""
     
     @State private var show_settings: Bool = false
+
+    private let regionCodeKey = "h63QSdBCiT/z0WU6rdQv6Q"
+    private let legacyRegionInfoKey = "zHeENZu+wbg7PUprwNwBWg"
+    private let sysconfigRegionInfoKey = "yK+xavymRGZ3xWc1tb8XDg"
+    private let activationRegionInfoKey = "mYFYwkOYqb5fOiu1C5W6Aw"
+    private let regulatoryModelKey = "97JDvERpVwO+GHtthIh7hA"
+    private let productTypeKey = "h9jDsbgj7xIVeIQ8S3/X3Q"
     
     private var mg_valid: Bool {
         guard let data = try? Data(contentsOf: URL(fileURLWithPath: TweakPaths.gestalt)) else { return false }
@@ -110,7 +127,6 @@ struct ContentView: View {
                     Label("Device Artwork", systemImage: "paintbrush.pointed")
                 }
                 
-                // basic tweak toggles
                 Section {
                     PlainToggle(text: "Dynamic Island", minSupportedVersion: 19.0, isOn: mg_key_binding(["YlEtTtHlNesRBMal1CqRaA"]))
                     PlainToggle(text: "Always On Display", minSupportedVersion: 18.0, isOn: mg_key_binding(["j8/Omm6s1lsmTDFsXjsBfA", "2OOJf1VhaM7NxfRok3HbWQ"]))
@@ -180,6 +196,59 @@ struct ContentView: View {
                 } header: {
                     Label("Eligibility", systemImage: "checklist")
                 }
+
+                Section {
+                    Picker("Preset", selection: $identity_preset) {
+                        Text("Custom").tag("custom")
+                        Text("United States (LL/A)").tag("us")
+                        Text("Hong Kong / Macau (ZP/A)").tag("hk")
+                        Text("Japan (J/A)").tag("jp")
+                        Text("China Mainland (CH/A)").tag("cn")
+                    }
+                    .onChange(of: identity_preset) { newValue in
+                        apply_identity_preset(newValue)
+                    }
+
+                    TextField("Regulatory Model (e.g. A2848)", text: $custom_regulatory_model)
+                    TextField("Region Code (e.g. LL)", text: $custom_region_code)
+                    TextField("Region Info (e.g. LL/A)", text: $custom_region_info)
+                    TextField("Product Type (e.g. iPhone16,1)", text: $custom_product_type)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Read-back diagnostics")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("Legacy RegionInfo: \(legacy_region_info.isEmpty ? "(missing)" : legacy_region_info)")
+                            .font(.caption)
+                        Text("Sysconfig RegionInfo: \(sysconfig_region_info.isEmpty ? "(missing)" : sysconfig_region_info)")
+                            .font(.caption)
+                        Text("Activation RegionInfo: \(activation_region_info.isEmpty ? "(missing)" : activation_region_info)")
+                            .font(.caption)
+                    }
+
+                    Button {
+                        apply_custom_identity()
+                    } label: {
+                        Text("Apply Identity & Verify")
+                    }
+
+                    Button {
+                        identity_status = ""
+                        mg_load()
+                    } label: {
+                        Text("Reload Current Values")
+                    }
+
+                    if !identity_status.isEmpty {
+                        Text(identity_status)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Label("Device Region Identity", systemImage: "globe.americas")
+                } footer: {
+                    Text("Writes RegulatoryModelNumber, RegionCode, legacy RegionInfo and the newer RegionInfoFromSysconfig, then reads the plist back to verify. RegionInfoFromActivation is shown for diagnostics only and is not modified. Wrong identity values may break device features; keep your backup. Settings > General > Language & Region and Siri language are separate system settings and should be changed manually when needed.")
+                }
                 
                 Section {
                     let cache_extra = mg_dict_now["CacheExtra"] as? NSMutableDictionary
@@ -240,6 +309,8 @@ struct ContentView: View {
     private enum MGViewError: Error, LocalizedError {
         case missingArtworkSubtype
         case missingArtworkDeviceName
+        case invalidIdentity(String)
+        case identityVerificationFailed
         
         var errorDescription: String? {
             switch self {
@@ -247,6 +318,10 @@ struct ContentView: View {
                 return "Failed to get ArtworkDeviceSubType!"
             case .missingArtworkDeviceName:
                 return "Failed to get ArtworkDeviceProductDescription!"
+            case .invalidIdentity(let message):
+                return message
+            case .identityVerificationFailed:
+                return "The MobileGestalt file was written, but the requested identity values did not read back correctly."
             }
         }
     }
@@ -256,14 +331,12 @@ struct ContentView: View {
             let mg_url_now = URL(fileURLWithPath: TweakPaths.gestalt)
             mg_dict_now = try NSMutableDictionary(contentsOf: mg_url_now, error: ())
             
-            // this'll cache gestalt and put it in a safe place
             let mg_url_saved = URL(fileURLWithPath: AppPaths.backups).appendingPathComponent("SavedGestalt.plist")
             
             if !FileManager.default.fileExists(atPath: mg_url_saved.path) {
                 try FileManager.default.copyItem(at: mg_url_now, to: mg_url_saved)
             }
             
-            // get original gestalt values
             let mg_saved_dict = try NSMutableDictionary(contentsOf: mg_url_saved, error: ())
             let og_cache_extra = mg_saved_dict["CacheExtra"] as? NSMutableDictionary ?? NSMutableDictionary()
             let og_artwork = og_cache_extra["oPeik/9e8lQWMszEjbPzng"] as? NSMutableDictionary ?? NSMutableDictionary()
@@ -273,27 +346,153 @@ struct ContentView: View {
             
             guard let ogDeviceName = og_artwork["ArtworkDeviceProductDescription"] as? String else { throw MGViewError.missingArtworkDeviceName }
             
-            // now get current gestalt values
             let cache_extra = mg_dict_now["CacheExtra"] as? NSMutableDictionary ?? NSMutableDictionary()
-            
             let artwork = cache_extra["oPeik/9e8lQWMszEjbPzng"] as? NSMutableDictionary ?? NSMutableDictionary()
             
-            subtype = artwork["ArtworkDeviceSubType"] as? Int ?? ogSubtype // fallback
+            subtype = artwork["ArtworkDeviceSubType"] as? Int ?? ogSubtype
             mg_devicename = artwork["ArtworkDeviceProductDescription"] as? String ?? ogDeviceName
             
-            // assume it's been changed
             if mg_devicename != ogDeviceName {
                 enable_devicename = true
             }
             
-            if let productType = cache_extra["h9jDsbgj7xIVeIQ8S3/X3Q"] as? String, !productType.isEmpty {
+            if let productType = cache_extra[productTypeKey] as? String, !productType.isEmpty {
                 product_type = productType
             } else {
                 product_type = machine_name()
             }
+
+            load_identity_fields(from: cache_extra)
         } catch {
             print("(mg) failed to load data: \(error)")
             Alertinator.shared.alert(title: "Failed to load current MobileGestalt!", body: "Restart the app and try again. Check logs for more detailed information.")
+        }
+    }
+
+    private func load_identity_fields(from cache_extra: NSMutableDictionary) {
+        custom_regulatory_model = cache_extra[regulatoryModelKey] as? String ?? ""
+        custom_region_code = cache_extra[regionCodeKey] as? String ?? ""
+        legacy_region_info = cache_extra[legacyRegionInfoKey] as? String ?? ""
+        sysconfig_region_info = cache_extra[sysconfigRegionInfoKey] as? String ?? ""
+        activation_region_info = cache_extra[activationRegionInfoKey] as? String ?? ""
+        custom_region_info = !sysconfig_region_info.isEmpty ? sysconfig_region_info : legacy_region_info
+        custom_product_type = cache_extra[productTypeKey] as? String ?? machine_name()
+        identity_preset = preset_for(regionCode: custom_region_code, regionInfo: custom_region_info)
+    }
+
+    private func preset_for(regionCode: String, regionInfo: String) -> String {
+        switch (regionCode.uppercased(), regionInfo.uppercased()) {
+        case ("LL", "LL/A"):
+            return "us"
+        case ("ZP", "ZP/A"):
+            return "hk"
+        case ("J", "J/A"):
+            return "jp"
+        case ("CH", "CH/A"):
+            return "cn"
+        default:
+            return "custom"
+        }
+    }
+
+    private func apply_identity_preset(_ preset: String) {
+        switch preset {
+        case "us":
+            custom_region_code = "LL"
+            custom_region_info = "LL/A"
+            if let model = us_regulatory_model(for: custom_product_type.isEmpty ? machine_name() : custom_product_type) {
+                custom_regulatory_model = model
+            }
+        case "hk":
+            custom_region_code = "ZP"
+            custom_region_info = "ZP/A"
+        case "jp":
+            custom_region_code = "J"
+            custom_region_info = "J/A"
+        case "cn":
+            custom_region_code = "CH"
+            custom_region_info = "CH/A"
+        default:
+            break
+        }
+    }
+
+    private func us_regulatory_model(for productType: String) -> String? {
+        switch productType {
+        case "iPhone16,1": return "A2848"
+        case "iPhone16,2": return "A2849"
+        case "iPhone17,3": return "A3081"
+        case "iPhone17,4": return "A3082"
+        case "iPhone17,1": return "A3083"
+        case "iPhone17,2": return "A3084"
+        default: return nil
+        }
+    }
+
+    private func apply_custom_identity() {
+        do {
+            let model = custom_regulatory_model.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let regionCode = custom_region_code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let regionInfo = custom_region_info.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let productType = custom_product_type.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if !model.isEmpty && model.range(of: #"^A[0-9]{4}$"#, options: .regularExpression) == nil {
+                throw MGViewError.invalidIdentity("Regulatory Model must look like A2848 (A followed by four digits), or be left empty to keep the current value.")
+            }
+            if regionCode.range(of: #"^[A-Z0-9]{1,4}$"#, options: .regularExpression) == nil {
+                throw MGViewError.invalidIdentity("Region Code must contain 1-4 uppercase letters/numbers, for example LL, ZP, J or CH.")
+            }
+            if regionInfo.range(of: #"^[A-Z0-9]{1,4}/A$"#, options: .regularExpression) == nil {
+                throw MGViewError.invalidIdentity("Region Info must look like LL/A, ZP/A, J/A or CH/A.")
+            }
+            if !productType.isEmpty && productType.range(of: #"^[A-Za-z]+[0-9]+,[0-9]+$"#, options: .regularExpression) == nil {
+                throw MGViewError.invalidIdentity("Product Type must look like iPhone16,1 or iPad16,3, or be left empty.")
+            }
+
+            guard let cache_extra = mg_dict_now["CacheExtra"] as? NSMutableDictionary else {
+                throw MGViewError.invalidIdentity("MobileGestalt CacheExtra is missing.")
+            }
+
+            cache_extra[regionCodeKey] = regionCode
+            cache_extra[legacyRegionInfoKey] = regionInfo
+            cache_extra[sysconfigRegionInfoKey] = regionInfo
+            if !model.isEmpty {
+                cache_extra[regulatoryModelKey] = model
+            }
+            if !productType.isEmpty {
+                cache_extra[productTypeKey] = productType
+                product_type = productType
+            }
+
+            let data = try PropertyListSerialization.data(fromPropertyList: mg_dict_now, format: .xml, options: 0)
+            try mg_write(data)
+
+            let verifyURL = URL(fileURLWithPath: TweakPaths.gestalt)
+            let verifyDict = try NSMutableDictionary(contentsOf: verifyURL, error: ())
+            guard let verifiedCache = verifyDict["CacheExtra"] as? NSMutableDictionary else {
+                throw MGViewError.identityVerificationFailed
+            }
+
+            let codeOK = verifiedCache[regionCodeKey] as? String == regionCode
+            let legacyOK = verifiedCache[legacyRegionInfoKey] as? String == regionInfo
+            let sysconfigOK = verifiedCache[sysconfigRegionInfoKey] as? String == regionInfo
+            let modelOK = model.isEmpty || verifiedCache[regulatoryModelKey] as? String == model
+            let productOK = productType.isEmpty || verifiedCache[productTypeKey] as? String == productType
+
+            guard codeOK && legacyOK && sysconfigOK && modelOK && productOK else {
+                throw MGViewError.identityVerificationFailed
+            }
+
+            identity_status = "Verified: \(model.isEmpty ? "model unchanged" : model) · \(regionCode) · \(regionInfo) · \(productType.isEmpty ? "ProductType unchanged" : productType)"
+            print("(identity) verified RegulatoryModel=\(model.isEmpty ? "unchanged" : model), RegionCode=\(regionCode), RegionInfo=\(regionInfo), ProductType=\(productType.isEmpty ? "unchanged" : productType)")
+            mg_load()
+            Alertinator.shared.alert(title: "Identity patch verified", body: "The requested MobileGestalt identity values were written and read back successfully. Respring first; some region identity changes may require a full reboot.", actionLabel: "Respring", action: {
+                state.respring()
+            })
+        } catch {
+            identity_status = "Failed: \(error.localizedDescription)"
+            print("(identity) failed: \(error)")
+            Alertinator.shared.alert(title: "Identity patch failed", body: error.localizedDescription)
         }
     }
     
@@ -301,7 +500,7 @@ struct ContentView: View {
         do {
             let cache_extra = mg_dict_now["CacheExtra"] as? NSMutableDictionary ?? NSMutableDictionary()
             if !product_type.isEmpty {
-                cache_extra["h9jDsbgj7xIVeIQ8S3/X3Q"] = product_type
+                cache_extra[productTypeKey] = product_type
             }
             
             let artwork_dict = cache_extra["oPeik/9e8lQWMszEjbPzng"] as? NSMutableDictionary ?? NSMutableDictionary()
@@ -313,8 +512,8 @@ struct ContentView: View {
             let data = try PropertyListSerialization.data(fromPropertyList: mg_dict_now, format: .xml, options: 0)
 
             try mg_write(data)
-            mg_dict_now = NSMutableDictionary()
             enable_devicename = false
+            mg_load()
 
             print("(mg) successfully overwrote mobilegestalt!")
             Alertinator.shared.alert(title: "Successfully applied Gestalt tweaks!", body: "Respring your device for changes to take effect. Note that some tweaks may require a reboot for them to apply properly.", actionLabel: "Respring", action: {
@@ -331,11 +530,11 @@ struct ContentView: View {
             let backup_url = URL(fileURLWithPath: AppPaths.backups).appendingPathComponent("SavedGestalt.plist")
             let backup_data = try Data(contentsOf: backup_url)
             try mg_write(backup_data)
+            mg_load()
 
             print("(mg) successfully reverted mobilegestalt!)")
             Alertinator.shared.alert(title: "Successfully reverted Gestalt tweaks!", body: "Reboot your device for changes to take effect.")
         } catch {
-            // The direct file write path now surfaces the underlying error through the catch.
             print("(mg) failed to revert mobilegestalt: \(error)")
             Alertinator.shared.alert(title: "Failed to revert MobileGestalt!", body: "Check logs for error information.")
         }
@@ -369,7 +568,6 @@ struct ContentView: View {
             return false
         }, set: { enabled in
             for key in keys {
-                // if it exists inside of the plist, then update it. if not then pull the value completely.
                 if enabled {
                     cache_extra[key] = on_val
                 } else {
@@ -387,12 +585,12 @@ struct ContentView: View {
         
         let value_off = cache_data_offset("mtrAoWJ3gsq+I90ZnQ0vQw")
         let keys = [
-            "uKc7FPnEO++lVhHWHFlGbQ", // ipad
-            "mG0AnH/Vy1veoqoLRAIgTA", // MedusaFloatingLiveAppCapability
-            "UCG5MkVahJxG1YULbbd5Bg", // MedusaOverlayAppCapability
-            "ZYqko/XM5zD3XBfN5RmaXA", // MedusaPinnedAppCapability
-            "nVh/gwNpy7Jv1NOk00CMrw", // MedusaPIPCapability,
-            "qeaj75wk3HF4DwQ8qbIi7g", // DeviceSupportsEnhancedMultitasking
+            "uKc7FPnEO++lVhHWHFlGbQ",
+            "mG0AnH/Vy1veoqoLRAIgTA",
+            "UCG5MkVahJxG1YULbbd5Bg",
+            "ZYqko/XM5zD3XBfN5RmaXA",
+            "nVh/gwNpy7Jv1NOk00CMrw",
+            "qeaj75wk3HF4DwQ8qbIi7g",
         ]
         
         return Binding(get: {
@@ -425,17 +623,21 @@ struct ContentView: View {
         
         return Binding<Bool>(
             get: {
-                return cache_extra["h63QSdBCiT/z0WU6rdQv6Q"] as? String == "US" &&
-                    cache_extra["zHeENZu+wbg7PUprwNwBWg"] as? String == "LL/A"
+                let code = cache_extra[regionCodeKey] as? String
+                let legacy = cache_extra[legacyRegionInfoKey] as? String
+                let sysconfig = cache_extra[sysconfigRegionInfoKey] as? String
+                return code == "LL" && (legacy == "LL/A" || sysconfig == "LL/A")
             },
             set: { enabled in
                 if enabled {
                     Alertinator.shared.alert(title: "Warning!", body: "Please do not use this feature to bypass region restrictions that would equate to breaking regional laws (e.g. disabling the camera shutter sound). We will NOT be held responsible for enabling any illegal activites!")
-                    cache_extra["h63QSdBCiT/z0WU6rdQv6Q"] = "US"
-                    cache_extra["zHeENZu+wbg7PUprwNwBWg"] = "LL/A"
+                    cache_extra[regionCodeKey] = "LL"
+                    cache_extra[legacyRegionInfoKey] = "LL/A"
+                    cache_extra[sysconfigRegionInfoKey] = "LL/A"
                 } else {
-                    cache_extra.removeObject(forKey: "h63QSdBCiT/z0WU6rdQv6Q")
-                    cache_extra.removeObject(forKey: "zHeENZu+wbg7PUprwNwBWg")
+                    cache_extra.removeObject(forKey: regionCodeKey)
+                    cache_extra.removeObject(forKey: legacyRegionInfoKey)
+                    cache_extra.removeObject(forKey: sysconfigRegionInfoKey)
                 }
             }
         )
