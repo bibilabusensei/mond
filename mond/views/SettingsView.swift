@@ -165,6 +165,8 @@ struct SettingsView: View {
                     CreditsRow(name: "forcequit", role: L("The bad_query exploit"), profile: URL(string: "https://github.com/forcequitOS")!)
                     CreditsRow(name: "johnny", role: L("MCM bug research"), profile: URL(string: "https://github.com/0xjohnnydev")!)
                     CreditsRow(name: "jailbreak.party", role: "PartyUI, GestaltView", profile: URL(string: "https://github.com/jailbreakdotparty")!)
+                    CreditsRow(name: "bibilabusensei", role: "Chinese localization & feature optimization / 汉化与功能优化", profile: URL(string: "https://github.com/bibilabusensei")!)
+                    CreditsRow(name: "ChatGPT", role: "AI-assisted development & debugging / AI 协助开发与调试", profile: URL(string: "https://github.com/openai")!)
                 } header: {
                     Label("Credits", systemImage: "person.3.fill")
                 }
