@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 private struct AIDiagnosticItem: Identifiable {
     let id = UUID()
@@ -24,7 +25,7 @@ private enum AIDiagnosticState {
         switch self {
         case .good: return .green
         case .warning: return .orange
-        case .neutral: return .secondary
+        case .neutral: return .gray
         }
     }
 }
@@ -185,9 +186,9 @@ struct AppleIntelligenceDiagnosticsView: View {
                 AIDiagnosticItem(title: L("Sysconfig RegionInfo"), value: sysconfigRegion, state: sysconfigRegion == "LL/A" ? .good : .neutral),
                 AIDiagnosticItem(title: L("Activation RegionInfo"), value: activationRegion, state: .neutral),
                 AIDiagnosticItem(title: "ProductType", value: productType, state: .neutral),
-                AIDiagnosticItem(title: "Apple Intelligence capability", value: aiEnabled == true ? "1 / true" : displayBool(aiEnabled), state: aiEnabled == true ? .good : .warning),
-                AIDiagnosticItem(title: "green-tea (China market)", value: displayBool(greenTea), state: greenTea == true ? .warning : .good),
-                AIDiagnosticItem(title: "not-green-tea (non-China market)", value: displayBool(notGreenTea), state: notGreenTea == true ? .good : .warning)
+                AIDiagnosticItem(title: L("Apple Intelligence capability"), value: aiEnabled == true ? "1 / true" : displayBool(aiEnabled), state: aiEnabled == true ? .good : .warning),
+                AIDiagnosticItem(title: L("green-tea (China market)"), value: displayBool(greenTea), state: greenTea == true ? .warning : .good),
+                AIDiagnosticItem(title: L("not-green-tea (non-China market)"), value: displayBool(notGreenTea), state: notGreenTea == true ? .good : .warning)
             ]
         } catch {
             gestaltItems = [
