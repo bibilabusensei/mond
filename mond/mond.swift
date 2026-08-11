@@ -22,14 +22,22 @@ var path: String {
     }
 
     return url.path
-} 
+}
 
 @main
 struct mond: App {
     @StateObject private var state = AppState()
+    @AppStorage("app_language") private var appLanguageRaw: String = AppLanguage.system.rawValue
+
+    private var appLanguage: AppLanguage {
+        AppLanguage(rawValue: appLanguageRaw) ?? .system
+    }
     
     init() {
-        UserDefaults.standard.register(defaults: ["exploit_method": "bad_query"])
+        UserDefaults.standard.register(defaults: [
+            "exploit_method": "bad_query",
+            "app_language": AppLanguage.system.rawValue
+        ])
         if !is_debugged() {
             setvbuf(stdout, nil, _IONBF, 0)
             dup2(pipe.fileHandleForWriting.fileDescriptor, STDOUT_FILENO)
@@ -40,13 +48,12 @@ struct mond: App {
         WindowGroup {
             ContentView()
                 .environmentObject(state)
-                // App 内固定使用简体中文，不影响 iPhone 系统语言和 Siri 语言。
-                .environment(\.locale, Locale(identifier: "zh-Hans"))
+                .environment(\.locale, appLanguage.locale)
                 .onAppear() {
                     if !is_supported() {
                         Alertinator.shared.alert(
-                            title: "当前系统版本可能不受支持",
-                            body: "Mond 目前仅支持 iOS 27.0 beta 1 到 beta 4。继续使用前请确认系统版本。"
+                            title: L("Unsupported system version"),
+                            body: L("Mond currently supports iOS 27.0 beta 1 through beta 4. Please confirm your system version before continuing.")
                         )
                     }
                 }
