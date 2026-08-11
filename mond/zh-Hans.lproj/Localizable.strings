@@ -42,9 +42,12 @@
 "Japan (J/A)" = "日本版 (J/A)";
 "China Mainland (CH/A)" = "中国大陆版 (CH/A)";
 "Regulatory Model (e.g. A2848)" = "监管型号（例如 A2848）";
+"Retail Model Base (e.g. MTQ83)" = "零售型号主体（例如 MTQ83）";
 "Region Code (e.g. LL)" = "地区代码（例如 LL）";
 "Region Info (e.g. LL/A)" = "地区后缀（例如 LL/A）";
 "Product Type (e.g. iPhone16,1)" = "产品类型（例如 iPhone16,1）";
+"Mark as non-China-market device" = "标记为非中国大陆市场设备";
+"Displayed retail model" = "设置中显示的零售型号";
 "Read-back diagnostics" = "回读诊断";
 "Legacy RegionInfo" = "旧版 RegionInfo";
 "Sysconfig RegionInfo" = "Sysconfig RegionInfo";
@@ -54,6 +57,8 @@
 "Reload Current Values" = "重新读取当前值";
 "Device Region Identity" = "设备地区身份";
 "Writes RegulatoryModelNumber, RegionCode, legacy RegionInfo and the newer RegionInfoFromSysconfig, then reads the plist back to verify. RegionInfoFromActivation is shown for diagnostics only and is not modified. Wrong identity values may break device features; keep your backup. Settings > General > Language & Region and Siri language are separate system settings and should be changed manually when needed." = "写入 RegulatoryModelNumber、RegionCode、旧版 RegionInfo 和较新的 RegionInfoFromSysconfig，然后重新读取 plist 进行验证。RegionInfoFromActivation 仅用于诊断，不会修改。错误的身份值可能导致设备功能异常，请保留备份。系统“语言与地区”和 Siri 语言是独立设置，需要时请手动修改。";
+"The M-number shown normally in Settings is the retail model base plus the region suffix. The A-number shown after tapping Model Number is a regulatory hardware model and may still reflect the physical device because iOS can read it from boot-time hardware configuration. This editor changes MobileGestalt cache values only and does not write SysCfg. The non-China-market flag controls MobileGestalt green-tea/not-green-tea values used by regional eligibility checks. Wrong identity values may break device features; keep your backup." = "设置里正常显示的 M 型号由零售型号主体加地区后缀组成。点一下“型号”后显示的 Axxxx 是监管硬件型号，iOS 可能直接从开机时的硬件配置读取，因此仍可能显示真实 A 型号。本工具只修改 MobileGestalt 缓存，不写入 SysCfg。“非中国大陆市场设备”开关会修改地区资格判断使用的 green-tea / not-green-tea 标记。错误的身份值可能导致功能异常，请保留备份。";
+"Retail Model Base must contain exactly five letters/numbers, for example MTQ83." = "零售型号主体必须正好是 5 个字母或数字，例如 MTQ83。";
 "Allow Installing iPadOS Apps" = "允许安装 iPadOS App";
 "Apple Pencil Settings" = "Apple Pencil 设置";
 "Stage Manager" = "台前调度";
