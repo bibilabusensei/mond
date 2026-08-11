@@ -76,6 +76,18 @@ struct SettingsView: View {
                 } footer: {
                     Text("Changes the Mond interface language only. It does not change the iPhone system language, region, or Siri language.")
                 }
+
+                Section {
+                    NavigationLink {
+                        AppleIntelligenceDiagnosticsView()
+                    } label: {
+                        Label("Apple Intelligence Diagnostics", systemImage: "brain.head.profile")
+                    }
+                } header: {
+                    Label("Diagnostics", systemImage: "stethoscope")
+                } footer: {
+                    Text("Read MobileGestalt identity values and attempt a read-only inspection of eligibilityd to locate the remaining Apple Intelligence eligibility failure.")
+                }
                 
                 Section {
                     LogView()
