@@ -40,16 +40,140 @@ func currentAppLanguage() -> AppLanguage {
     return AppLanguage(rawValue: raw) ?? .system
 }
 
+private func resolvedSystemLanguage() -> AppLanguage {
+    let preferred = Locale.preferredLanguages.first?.lowercased() ?? "en"
+    if preferred.hasPrefix("zh-hant") || preferred.hasPrefix("zh-tw") || preferred.hasPrefix("zh-hk") {
+        return .zhHant
+    }
+    if preferred.hasPrefix("zh") {
+        return .zhHans
+    }
+    if preferred.hasPrefix("ja") {
+        return .ja
+    }
+    return .en
+}
+
+private func manualTranslation(_ key: String, language: AppLanguage) -> String? {
+    let zhHans: [String: String] = [
+        "Detected Retail Model Base": "检测到的零售型号主体",
+        "Apple Intelligence Diagnostics": "Apple Intelligence 诊断",
+        "Diagnostics": "诊断",
+        "Read MobileGestalt identity values and attempt a read-only inspection of eligibilityd to locate the remaining Apple Intelligence eligibility failure.": "读取 MobileGestalt 身份信息，并以只读方式检查 eligibilityd，用于定位 Apple Intelligence 剩余的资格失败原因。",
+        "System Environment": "系统环境",
+        "This page is read-only. The device language shown here is the app/system preferred language; Siri language is evaluated separately by iOS and may only appear inside eligibilityd data when that file is readable.": "此页面仅用于读取诊断。这里显示的设备语言是 App/系统首选语言；Siri 语言由 iOS 单独判断，只有在 eligibilityd 可读取时才可能显示在其数据中。",
+        "MobileGestalt Identity": "MobileGestalt 身份",
+        "Apple Intelligence Eligibility": "Apple Intelligence 资格",
+        "Mond only attempts to read eligibilityd here. It does not modify eligibility.plist. If access is denied, that result is useful: the current MobileGestalt sandbox token does not grant access to eligibilityd and a different read path would be required before deeper diagnosis.": "Mond 在这里仅尝试读取 eligibilityd，不会修改 eligibility.plist。如果访问被拒绝，这个结果本身也有诊断价值：当前 MobileGestalt 沙盒令牌没有 eligibilityd 读取权限，需要其他只读访问方式后才能继续深入诊断。",
+        "Refresh Diagnostics": "刷新诊断",
+        "Last updated": "最后更新",
+        "AI Diagnostics": "AI 诊断",
+        "iOS Version": "iOS 版本",
+        "Hardware ProductType": "硬件 ProductType",
+        "Preferred Language": "首选语言",
+        "Current Locale": "当前区域设置",
+        "Current Region": "当前地区",
+        "Regulatory Model": "监管型号",
+        "Retail Model Base": "零售型号主体",
+        "Region Code": "地区代码",
+        "Apple Intelligence capability": "Apple Intelligence 能力标记",
+        "green-tea (China market)": "green-tea（中国大陆市场）",
+        "not-green-tea (non-China market)": "not-green-tea（非中国大陆市场）",
+        "Read failed": "读取失败",
+        "CacheExtra missing": "CacheExtra 缺失",
+        "Not checked": "未检查",
+        "Readable": "可读取",
+        "File is readable, but no GREYMATTER/language/region/model eligibility fields were matched.": "文件可以读取，但没有匹配到 GREYMATTER / 语言 / 地区 / 型号相关资格字段。",
+        "Not readable with current sandbox": "当前沙盒权限无法读取"
+    ]
+
+    let zhHant: [String: String] = [
+        "Detected Retail Model Base": "偵測到的零售型號主體",
+        "Apple Intelligence Diagnostics": "Apple Intelligence 診斷",
+        "Diagnostics": "診斷",
+        "Read MobileGestalt identity values and attempt a read-only inspection of eligibilityd to locate the remaining Apple Intelligence eligibility failure.": "讀取 MobileGestalt 身分資訊，並以唯讀方式檢查 eligibilityd，以定位 Apple Intelligence 剩餘的資格失敗原因。",
+        "System Environment": "系統環境",
+        "This page is read-only. The device language shown here is the app/system preferred language; Siri language is evaluated separately by iOS and may only appear inside eligibilityd data when that file is readable.": "此頁面僅供唯讀診斷。這裡顯示的裝置語言是 App/系統偏好語言；Siri 語言由 iOS 另外判斷，只有在 eligibilityd 可讀取時才可能出現在其中。",
+        "MobileGestalt Identity": "MobileGestalt 身分",
+        "Apple Intelligence Eligibility": "Apple Intelligence 資格",
+        "Mond only attempts to read eligibilityd here. It does not modify eligibility.plist. If access is denied, that result is useful: the current MobileGestalt sandbox token does not grant access to eligibilityd and a different read path would be required before deeper diagnosis.": "Mond 在這裡只會嘗試讀取 eligibilityd，不會修改 eligibility.plist。若存取遭拒，這個結果本身也有診斷價值：目前 MobileGestalt 沙盒權杖沒有 eligibilityd 的讀取權限，需要其他唯讀途徑才能繼續深入診斷。",
+        "Refresh Diagnostics": "重新整理診斷",
+        "Last updated": "最後更新",
+        "AI Diagnostics": "AI 診斷",
+        "iOS Version": "iOS 版本",
+        "Hardware ProductType": "硬體 ProductType",
+        "Preferred Language": "偏好語言",
+        "Current Locale": "目前區域設定",
+        "Current Region": "目前地區",
+        "Regulatory Model": "監管型號",
+        "Retail Model Base": "零售型號主體",
+        "Region Code": "地區代碼",
+        "Apple Intelligence capability": "Apple Intelligence 能力標記",
+        "green-tea (China market)": "green-tea（中國大陸市場）",
+        "not-green-tea (non-China market)": "not-green-tea（非中國大陸市場）",
+        "Read failed": "讀取失敗",
+        "CacheExtra missing": "缺少 CacheExtra",
+        "Not checked": "尚未檢查",
+        "Readable": "可讀取",
+        "File is readable, but no GREYMATTER/language/region/model eligibility fields were matched.": "檔案可以讀取，但沒有符合 GREYMATTER / 語言 / 地區 / 型號相關的資格欄位。",
+        "Not readable with current sandbox": "目前沙盒權限無法讀取"
+    ]
+
+    let ja: [String: String] = [
+        "Detected Retail Model Base": "検出された販売モデル本体",
+        "Apple Intelligence Diagnostics": "Apple Intelligence 診断",
+        "Diagnostics": "診断",
+        "Read MobileGestalt identity values and attempt a read-only inspection of eligibilityd to locate the remaining Apple Intelligence eligibility failure.": "MobileGestalt の識別情報を読み取り、eligibilityd を読み取り専用で確認して Apple Intelligence の残りの適格性エラーを特定します。",
+        "System Environment": "システム環境",
+        "This page is read-only. The device language shown here is the app/system preferred language; Siri language is evaluated separately by iOS and may only appear inside eligibilityd data when that file is readable.": "このページは読み取り専用の診断です。ここに表示される言語は App/システムの優先言語です。Siri の言語は iOS が別に判定し、eligibilityd が読み取れる場合のみそのデータ内に現れることがあります。",
+        "MobileGestalt Identity": "MobileGestalt 識別情報",
+        "Apple Intelligence Eligibility": "Apple Intelligence 適格性",
+        "Mond only attempts to read eligibilityd here. It does not modify eligibility.plist. If access is denied, that result is useful: the current MobileGestalt sandbox token does not grant access to eligibilityd and a different read path would be required before deeper diagnosis.": "Mond はここで eligibilityd の読み取りのみを試み、eligibility.plist は変更しません。アクセス拒否も診断結果として有用で、現在の MobileGestalt サンドボックストークンには eligibilityd の読み取り権限がないことを示します。",
+        "Refresh Diagnostics": "診断を更新",
+        "Last updated": "最終更新",
+        "AI Diagnostics": "AI 診断",
+        "iOS Version": "iOS バージョン",
+        "Hardware ProductType": "ハードウェア ProductType",
+        "Preferred Language": "優先言語",
+        "Current Locale": "現在のロケール",
+        "Current Region": "現在の地域",
+        "Regulatory Model": "規制モデル",
+        "Retail Model Base": "販売モデル本体",
+        "Region Code": "地域コード",
+        "Apple Intelligence capability": "Apple Intelligence 能力フラグ",
+        "green-tea (China market)": "green-tea（中国市場）",
+        "not-green-tea (non-China market)": "not-green-tea（中国以外の市場）",
+        "Read failed": "読み取り失敗",
+        "CacheExtra missing": "CacheExtra がありません",
+        "Not checked": "未確認",
+        "Readable": "読み取り可能",
+        "File is readable, but no GREYMATTER/language/region/model eligibility fields were matched.": "ファイルは読み取り可能ですが、GREYMATTER / 言語 / 地域 / モデルに関連する適格性フィールドは見つかりませんでした。",
+        "Not readable with current sandbox": "現在のサンドボックス権限では読み取れません"
+    ]
+
+    switch language {
+    case .zhHans: return zhHans[key]
+    case .zhHant: return zhHant[key]
+    case .ja: return ja[key]
+    case .en, .system: return nil
+    }
+}
+
 /// Localizes strings that are passed through APIs taking `String` instead of
 /// `LocalizedStringKey` (for example PartyUI labels and Alertinator messages).
 func L(_ key: String) -> String {
-    let language = currentAppLanguage()
+    let configured = currentAppLanguage()
+    let effective = configured == .system ? resolvedSystemLanguage() : configured
 
-    if language == .system {
+    if let manual = manualTranslation(key, language: effective) {
+        return manual
+    }
+
+    if configured == .system {
         return NSLocalizedString(key, comment: "")
     }
 
-    guard let path = Bundle.main.path(forResource: language.rawValue, ofType: "lproj"),
+    guard let path = Bundle.main.path(forResource: configured.rawValue, ofType: "lproj"),
           let bundle = Bundle(path: path) else {
         return key
     }
