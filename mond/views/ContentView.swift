@@ -24,12 +24,16 @@ struct ContentView: View {
 
     @State private var identity_preset: String = "custom"
     @State private var custom_regulatory_model: String = ""
+    @State private var custom_model_number: String = ""
     @State private var custom_region_code: String = ""
     @State private var custom_region_info: String = ""
     @State private var custom_product_type: String = ""
+    @State private var spoof_non_china_market: Bool = false
     @State private var legacy_region_info: String = ""
     @State private var sysconfig_region_info: String = ""
     @State private var activation_region_info: String = ""
+    @State private var green_tea_status: String = ""
+    @State private var not_green_tea_status: String = ""
     @State private var identity_status: String = ""
     
     @State private var show_settings: Bool = false
@@ -39,7 +43,10 @@ struct ContentView: View {
     private let sysconfigRegionInfoKey = "yK+xavymRGZ3xWc1tb8XDg"
     private let activationRegionInfoKey = "mYFYwkOYqb5fOiu1C5W6Aw"
     private let regulatoryModelKey = "97JDvERpVwO+GHtthIh7hA"
+    private let modelNumberKey = "D0cJ8r7U5zve6uA6QbOiLA"
     private let productTypeKey = "h9jDsbgj7xIVeIQ8S3/X3Q"
+    private let greenTeaKey = "iyfxmLogGVIaH7aEgqwcIA"
+    private let notGreenTeaKey = "4snMZS8LJkSctKypt2m+xA"
     
     private var mg_valid: Bool {
         guard let data = try? Data(contentsOf: URL(fileURLWithPath: TweakPaths.gestalt)) else { return false }
@@ -210,9 +217,21 @@ struct ContentView: View {
                     }
 
                     TextField("Regulatory Model (e.g. A2848)", text: $custom_regulatory_model)
+                    TextField("Retail Model Base (e.g. MTQ83)", text: $custom_model_number)
                     TextField("Region Code (e.g. LL)", text: $custom_region_code)
                     TextField("Region Info (e.g. LL/A)", text: $custom_region_info)
                     TextField("Product Type (e.g. iPhone16,1)", text: $custom_product_type)
+
+                    Toggle("Mark as non-China-market device", isOn: $spoof_non_china_market)
+
+                    if !custom_model_number.isEmpty && !custom_region_info.isEmpty {
+                        HStack {
+                            Text("Displayed retail model")
+                            Spacer()
+                            Text("\(custom_model_number)\(custom_region_info)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Read-back diagnostics")
@@ -223,6 +242,10 @@ struct ContentView: View {
                         Text("\(L("Sysconfig RegionInfo")): \(sysconfig_region_info.isEmpty ? L("(missing)") : sysconfig_region_info)")
                             .font(.caption)
                         Text("\(L("Activation RegionInfo")): \(activation_region_info.isEmpty ? L("(missing)") : activation_region_info)")
+                            .font(.caption)
+                        Text("green-tea (China market): \(green_tea_status)")
+                            .font(.caption)
+                        Text("not-green-tea (non-China market): \(not_green_tea_status)")
                             .font(.caption)
                     }
 
@@ -247,7 +270,7 @@ struct ContentView: View {
                 } header: {
                     Label("Device Region Identity", systemImage: "globe.americas")
                 } footer: {
-                    Text("Writes RegulatoryModelNumber, RegionCode, legacy RegionInfo and the newer RegionInfoFromSysconfig, then reads the plist back to verify. RegionInfoFromActivation is shown for diagnostics only and is not modified. Wrong identity values may break device features; keep your backup. Settings > General > Language & Region and Siri language are separate system settings and should be changed manually when needed.")
+                    Text("The M-number shown normally in Settings is the retail model base plus the region suffix. The A-number shown after tapping Model Number is a regulatory hardware model and may still reflect the physical device because iOS can read it from boot-time hardware configuration. This editor changes MobileGestalt cache values only and does not write SysCfg. The non-China-market flag controls MobileGestalt green-tea/not-green-tea values used by regional eligibility checks. Wrong identity values may break device features; keep your backup.")
                 }
                 
                 Section {
@@ -370,14 +393,26 @@ struct ContentView: View {
         }
     }
 
+    private func display_cache_value(_ value: Any?) -> String {
+        guard let value else { return L("(missing)") }
+        if let number = value as? NSNumber {
+            return number.boolValue ? "1 / true" : "0 / false"
+        }
+        return String(describing: value)
+    }
+
     private func load_identity_fields(from cache_extra: NSMutableDictionary) {
         custom_regulatory_model = cache_extra[regulatoryModelKey] as? String ?? ""
+        custom_model_number = cache_extra[modelNumberKey] as? String ?? ""
         custom_region_code = cache_extra[regionCodeKey] as? String ?? ""
         legacy_region_info = cache_extra[legacyRegionInfoKey] as? String ?? ""
         sysconfig_region_info = cache_extra[sysconfigRegionInfoKey] as? String ?? ""
         activation_region_info = cache_extra[activationRegionInfoKey] as? String ?? ""
         custom_region_info = !sysconfig_region_info.isEmpty ? sysconfig_region_info : legacy_region_info
         custom_product_type = cache_extra[productTypeKey] as? String ?? machine_name()
+        green_tea_status = display_cache_value(cache_extra[greenTeaKey])
+        not_green_tea_status = display_cache_value(cache_extra[notGreenTeaKey])
+        spoof_non_china_market = (cache_extra[notGreenTeaKey] as? NSNumber)?.boolValue == true && (cache_extra[greenTeaKey] as? NSNumber)?.boolValue != true
         identity_preset = preset_for(regionCode: custom_region_code, regionInfo: custom_region_info)
     }
 
@@ -401,15 +436,19 @@ struct ContentView: View {
         case "us":
             custom_region_code = "LL"
             custom_region_info = "LL/A"
+            spoof_non_china_market = true
         case "hk":
             custom_region_code = "ZP"
             custom_region_info = "ZP/A"
+            spoof_non_china_market = true
         case "jp":
             custom_region_code = "J"
             custom_region_info = "J/A"
+            spoof_non_china_market = true
         case "cn":
             custom_region_code = "CH"
             custom_region_info = "CH/A"
+            spoof_non_china_market = false
         default:
             return
         }
@@ -504,12 +543,16 @@ struct ContentView: View {
     private func apply_custom_identity() {
         do {
             let model = custom_regulatory_model.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let retailModel = custom_model_number.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
             let regionCode = custom_region_code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
             let regionInfo = custom_region_info.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
             let productType = custom_product_type.trimmingCharacters(in: .whitespacesAndNewlines)
 
             if !model.isEmpty && model.range(of: #"^A[0-9]{4}$"#, options: .regularExpression) == nil {
                 throw MGViewError.invalidIdentity(L("Regulatory Model must look like A2848 (A followed by four digits), or be left empty to keep the current value."))
+            }
+            if !retailModel.isEmpty && retailModel.range(of: #"^[A-Z0-9]{5}$"#, options: .regularExpression) == nil {
+                throw MGViewError.invalidIdentity("Retail Model Base must contain exactly five letters/numbers, for example MTQ83.")
             }
             if regionCode.range(of: #"^[A-Z0-9]{1,4}$"#, options: .regularExpression) == nil {
                 throw MGViewError.invalidIdentity(L("Region Code must contain 1-4 uppercase letters/numbers, for example LL, ZP, J or CH."))
@@ -531,9 +574,20 @@ struct ContentView: View {
             if !model.isEmpty {
                 cache_extra[regulatoryModelKey] = model
             }
+            if !retailModel.isEmpty {
+                cache_extra[modelNumberKey] = retailModel
+            }
             if !productType.isEmpty {
                 cache_extra[productTypeKey] = productType
                 product_type = productType
+            }
+
+            if spoof_non_china_market {
+                cache_extra.removeObject(forKey: greenTeaKey)
+                cache_extra[notGreenTeaKey] = 1
+            } else if regionCode == "CH" {
+                cache_extra[greenTeaKey] = 1
+                cache_extra.removeObject(forKey: notGreenTeaKey)
             }
 
             let data = try PropertyListSerialization.data(fromPropertyList: mg_dict_now, format: .xml, options: 0)
@@ -549,14 +603,24 @@ struct ContentView: View {
             let legacyOK = verifiedCache[legacyRegionInfoKey] as? String == regionInfo
             let sysconfigOK = verifiedCache[sysconfigRegionInfoKey] as? String == regionInfo
             let modelOK = model.isEmpty || verifiedCache[regulatoryModelKey] as? String == model
+            let retailOK = retailModel.isEmpty || verifiedCache[modelNumberKey] as? String == retailModel
             let productOK = productType.isEmpty || verifiedCache[productTypeKey] as? String == productType
+            let marketOK: Bool
+            if spoof_non_china_market {
+                let green = (verifiedCache[greenTeaKey] as? NSNumber)?.boolValue ?? false
+                let notGreen = (verifiedCache[notGreenTeaKey] as? NSNumber)?.boolValue ?? false
+                marketOK = !green && notGreen
+            } else {
+                marketOK = true
+            }
 
-            guard codeOK && legacyOK && sysconfigOK && modelOK && productOK else {
+            guard codeOK && legacyOK && sysconfigOK && modelOK && retailOK && productOK && marketOK else {
                 throw MGViewError.identityVerificationFailed
             }
 
-            identity_status = "\(L("Verified")): \(model.isEmpty ? L("model unchanged") : model) · \(regionCode) · \(regionInfo) · \(productType.isEmpty ? L("ProductType unchanged") : productType)"
-            print("(identity) verified RegulatoryModel=\(model.isEmpty ? "unchanged" : model), RegionCode=\(regionCode), RegionInfo=\(regionInfo), ProductType=\(productType.isEmpty ? "unchanged" : productType)")
+            let retailDisplay = retailModel.isEmpty ? L("model unchanged") : "\(retailModel)\(regionInfo)"
+            identity_status = "\(L("Verified")): \(model.isEmpty ? L("model unchanged") : model) · \(retailDisplay) · \(regionCode) · \(productType.isEmpty ? L("ProductType unchanged") : productType)"
+            print("(identity) verified RegulatoryModel=\(model.isEmpty ? "unchanged" : model), RetailModel=\(retailDisplay), RegionCode=\(regionCode), RegionInfo=\(regionInfo), ProductType=\(productType.isEmpty ? "unchanged" : productType), nonChinaMarket=\(spoof_non_china_market)")
             mg_load()
             Alertinator.shared.alert(title: L("Identity patch verified"), body: L("The requested MobileGestalt identity values were written and read back successfully. Respring first; some region identity changes may require a full reboot."), actionLabel: L("Respring"), action: {
                 state.respring()
@@ -698,7 +762,8 @@ struct ContentView: View {
                 let code = cache_extra[regionCodeKey] as? String
                 let legacy = cache_extra[legacyRegionInfoKey] as? String
                 let sysconfig = cache_extra[sysconfigRegionInfoKey] as? String
-                return code == "LL" && (legacy == "LL/A" || sysconfig == "LL/A")
+                let notChina = (cache_extra[notGreenTeaKey] as? NSNumber)?.boolValue ?? false
+                return code == "LL" && (legacy == "LL/A" || sysconfig == "LL/A") && notChina
             },
             set: { enabled in
                 if enabled {
@@ -706,10 +771,14 @@ struct ContentView: View {
                     cache_extra[regionCodeKey] = "LL"
                     cache_extra[legacyRegionInfoKey] = "LL/A"
                     cache_extra[sysconfigRegionInfoKey] = "LL/A"
+                    cache_extra.removeObject(forKey: greenTeaKey)
+                    cache_extra[notGreenTeaKey] = 1
                 } else {
                     cache_extra.removeObject(forKey: regionCodeKey)
                     cache_extra.removeObject(forKey: legacyRegionInfoKey)
                     cache_extra.removeObject(forKey: sysconfigRegionInfoKey)
+                    cache_extra.removeObject(forKey: greenTeaKey)
+                    cache_extra.removeObject(forKey: notGreenTeaKey)
                 }
             }
         )
