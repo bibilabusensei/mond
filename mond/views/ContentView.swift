@@ -63,11 +63,11 @@ struct ContentView: View {
                 if !mg_valid || mg_empty {
                     Section {
                         if mg_empty {
-                            PlainAlert(title: "Do not reboot!", icon: "exclamationmark.triangle.fill", text: "Your MobileGestalt.plist seems to be empty.", color: Color.yellow)
+                            PlainAlert(title: L("Do not reboot!"), icon: "exclamationmark.triangle.fill", text: L("Your MobileGestalt.plist seems to be empty."), color: Color.yellow)
                         }
                         
                         if !mg_valid {
-                            PlainAlert(title: "Do not reboot!", icon: "exclamationmark.triangle.fill", text: "Your MobileGestalt.plist seems to be invalid.", color: Color.yellow)
+                            PlainAlert(title: L("Do not reboot!"), icon: "exclamationmark.triangle.fill", text: L("Your MobileGestalt.plist seems to be invalid."), color: Color.yellow)
                         }
                     } header: {
                         Label("Warning", systemImage: "exclamationmark.triangle")
@@ -94,7 +94,7 @@ struct ContentView: View {
                 
                 Section {
                     Picker(selection: $subtype) {
-                        Text("Original (\(og_subtype))").tag(og_subtype)
+                        Text("\(L("Original")) (\(og_subtype))").tag(og_subtype)
                         if is_device_good() {
                             Text("Disable Dynamic Island").tag(2436)
                         }
@@ -128,32 +128,32 @@ struct ContentView: View {
                 }
                 
                 Section {
-                    PlainToggle(text: "Dynamic Island", minSupportedVersion: 19.0, isOn: mg_key_binding(["YlEtTtHlNesRBMal1CqRaA"]))
-                    PlainToggle(text: "Always On Display", minSupportedVersion: 18.0, isOn: mg_key_binding(["j8/Omm6s1lsmTDFsXjsBfA", "2OOJf1VhaM7NxfRok3HbWQ"]))
-                    PlainToggle(text: "AOD Vibrancy", minSupportedVersion: 18.0, isOn: mg_key_binding(["ykpu7qyhqFweVMKtxNylWA"]))
-                    PlainToggle(text: "Charge Limit", minSupportedVersion: 17.0, isOn: mg_key_binding(["37NVydb//GP/GrhuTN+exg"]))
-                    PlainToggle(text: "Boot Chime", isOn: mg_key_binding(["QHxt+hGLaBPbQJbXiUJX3w"]))
-                    PlainToggle(text: "Liquid Glass LPM", minSupportedVersion: 19.0, isOn: mg_key_binding(["SAGvsp6O6kAQ4fEfDJpC4Q"]))
+                    PlainToggle(text: L("Dynamic Island"), minSupportedVersion: 19.0, isOn: mg_key_binding(["YlEtTtHlNesRBMal1CqRaA"]))
+                    PlainToggle(text: L("Always On Display"), minSupportedVersion: 18.0, isOn: mg_key_binding(["j8/Omm6s1lsmTDFsXjsBfA", "2OOJf1VhaM7NxfRok3HbWQ"]))
+                    PlainToggle(text: L("AOD Vibrancy"), minSupportedVersion: 18.0, isOn: mg_key_binding(["ykpu7qyhqFweVMKtxNylWA"]))
+                    PlainToggle(text: L("Charge Limit"), minSupportedVersion: 17.0, isOn: mg_key_binding(["37NVydb//GP/GrhuTN+exg"]))
+                    PlainToggle(text: L("Boot Chime"), isOn: mg_key_binding(["QHxt+hGLaBPbQJbXiUJX3w"]))
+                    PlainToggle(text: L("Liquid Glass LPM"), minSupportedVersion: 19.0, isOn: mg_key_binding(["SAGvsp6O6kAQ4fEfDJpC4Q"]))
                 } header: {
                     Label("Software-Oriented Features", systemImage: "gearshape")
                 }
                 
                 Section {
-                    PlainToggle(text: "Camera Control", minSupportedVersion: 18.0, isOn: mg_key_binding(["CwvKxM2cEogD3p+HYgaW0Q", "oOV1jhJbdV3AddkcCg0AEA"]))
-                    PlainToggle(text: "Action Button", minSupportedVersion: 17.0, isOn: mg_key_binding(["cT44WE1EohiwRzhsZ8xEsw"]))
-                    PlainToggle(text: "Crash Detection", isOn: mg_key_binding(["HCzWusHQwZDea6nNhaKndw"]))
+                    PlainToggle(text: L("Camera Control"), minSupportedVersion: 18.0, isOn: mg_key_binding(["CwvKxM2cEogD3p+HYgaW0Q", "oOV1jhJbdV3AddkcCg0AEA"]))
+                    PlainToggle(text: L("Action Button"), minSupportedVersion: 17.0, isOn: mg_key_binding(["cT44WE1EohiwRzhsZ8xEsw"]))
+                    PlainToggle(text: L("Crash Detection"), isOn: mg_key_binding(["HCzWusHQwZDea6nNhaKndw"]))
                     if hasHomeButton() {
-                        PlainToggle(text: "Enable Tap to Wake", isOn: mg_key_binding(["yZf3GTRMGTuwSV/lD7Cagw"]))
+                        PlainToggle(text: L("Enable Tap to Wake"), isOn: mg_key_binding(["yZf3GTRMGTuwSV/lD7Cagw"]))
                     }
-                    PlainToggle(text: "Pulse Width Modulation", minSupportedVersion: 19.0, isOn: mg_key_binding(["6IejgN+1Fmu5/QrZFOIeNw"]))
+                    PlainToggle(text: L("Pulse Width Modulation"), minSupportedVersion: 19.0, isOn: mg_key_binding(["6IejgN+1Fmu5/QrZFOIeNw"]))
                 } header: {
                     Label("Hardware-Oriented Features", systemImage: "iphone")
                 }
                 
                 Section {
-                    PlainToggle(text: "Security Research Device UI", minSupportedVersion: 26.0, isOn: mg_key_binding(["XYlJKKkj2hztRP1NWWnhlw"]))
-                    PlainToggle(text: "Disable Region Restrictions", isOn: mg_region_restrict_binding())
-                    PlainToggle(text: "Apple Intelligence", minSupportedVersion: 18.1, isOn: mg_key_binding(["A62OafQ85EJAiiqKn4agtg"]))
+                    PlainToggle(text: L("Security Research Device UI"), minSupportedVersion: 26.0, isOn: mg_key_binding(["XYlJKKkj2hztRP1NWWnhlw"]))
+                    PlainToggle(text: L("Disable Region Restrictions"), isOn: mg_region_restrict_binding())
+                    PlainToggle(text: L("Apple Intelligence"), minSupportedVersion: 18.1, isOn: mg_key_binding(["A62OafQ85EJAiiqKn4agtg"]))
                     HStack(spacing: 10) {
                         Picker("Spoofing", selection: $product_type) {
                             Text("Default").tag(machine_name())
@@ -184,8 +184,8 @@ struct ContentView: View {
                         
                         Button {
                             Alertinator.shared.alert(
-                                title: "Device Spoofing Info",
-                                body: "Only spoof your device model if you want to download Apple Intelligence. This may break Face ID. If you decide to unspoof and want to keep Apple Intelligence, do NOT re-enter the Apple Intelligence & Siri menu in Settings."
+                                title: L("Device Spoofing Info"),
+                                body: L("Only spoof your device model if you want to download Apple Intelligence. This may break Face ID. If you decide to unspoof and want to keep Apple Intelligence, do NOT re-enter the Apple Intelligence & Siri menu in Settings.")
                             )
                         } label: {
                             Image(systemName: "info.circle")
@@ -218,11 +218,11 @@ struct ContentView: View {
                         Text("Read-back diagnostics")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text("Legacy RegionInfo: \(legacy_region_info.isEmpty ? "(missing)" : legacy_region_info)")
+                        Text("\(L("Legacy RegionInfo")): \(legacy_region_info.isEmpty ? L("(missing)") : legacy_region_info)")
                             .font(.caption)
-                        Text("Sysconfig RegionInfo: \(sysconfig_region_info.isEmpty ? "(missing)" : sysconfig_region_info)")
+                        Text("\(L("Sysconfig RegionInfo")): \(sysconfig_region_info.isEmpty ? L("(missing)") : sysconfig_region_info)")
                             .font(.caption)
-                        Text("Activation RegionInfo: \(activation_region_info.isEmpty ? "(missing)" : activation_region_info)")
+                        Text("\(L("Activation RegionInfo")): \(activation_region_info.isEmpty ? L("(missing)") : activation_region_info)")
                             .font(.caption)
                     }
 
@@ -253,15 +253,16 @@ struct ContentView: View {
                 Section {
                     let cache_extra = mg_dict_now["CacheExtra"] as? NSMutableDictionary
                     
-                    PlainToggle(text: "Allow Installing iPadOS Apps", isOn: mg_key_binding(["9MZ5AdH43csAUajl/dU+IQ"], type: [Int].self, default_val: [1], on_val: [1, 2]))
-                    PlainToggle(text: "Apple Pencil Settings", isOn: mg_key_binding(["yhHcB0iH0d1XzPO/CFd3ow"]))
+                    PlainToggle(text: L("Allow Installing iPadOS Apps"), isOn: mg_key_binding(["9MZ5AdH43csAUajl/dU+IQ"], type: [Int].self, default_val: [1], on_val: [1, 2]))
+                    PlainToggle(text: L("Apple Pencil Settings"), isOn: mg_key_binding(["yhHcB0iH0d1XzPO/CFd3ow"]))
                     if UIDevice.current.userInterfaceIdiom == .pad {
-                        PlainToggle(text: "Stage Manager", isOn: mg_key_binding(["qeaj75wk3HF4DwQ8qbIi7g"]))
+                        PlainToggle(text: L("Stage Manager"), isOn: mg_key_binding(["qeaj75wk3HF4DwQ8qbIi7g"]))
                     }
                     PlainToggle(
-                        text: "iPadOS UI",
+                        text: L("iPadOS UI"),
                         infoType: .warning,
-                        infoMessage: "This is a very dangerous tweak to use! If you use an alphanumeric passcode, DO NOT USE THIS TWEAK AT ALL! Please do not turn off \"Show Dock In Stage Manager\" or your device will BOOTLOOP when rotating to landscape! With these two things in mind, you may experience general instability, or other major issues such as app data randomly disappearing. But I guess some funny multitasking features that still make the device relatively unusable are cool? Whatever dude, I'm not here to tell you how to use your own device.",
+                        infoTitle: L("Warning!"),
+                        infoMessage: L("This is a very dangerous tweak to use! If you use an alphanumeric passcode, DO NOT USE THIS TWEAK AT ALL! Please do not turn off \"Show Dock In Stage Manager\" or your device will BOOTLOOP when rotating to landscape! With these two things in mind, you may experience general instability, or other major issues such as app data randomly disappearing. But I guess some funny multitasking features that still make the device relatively unusable are cool? Whatever dude, I'm not here to tell you how to use your own device."),
                         isOn: mg_trollpad_binding()
                     )
                     .disabled(cache_extra?["+3Uf0Pm5F8Xy7Onyvko0vA"] as? String != "iPhone")
@@ -270,9 +271,9 @@ struct ContentView: View {
                 }
                 
                 Section {
-                    PlainToggle(text: "Internal Storage", isOn: mg_key_binding(["LBJfwOEzExRxzlAnSuI7eg"]))
-                    PlainToggle(text: "Internal Features", isOn: mg_internal_binding())
-                    PlainToggle(text: "Metal HUD in All Apps", isOn: mg_key_binding(["EqrsVvjcYDdxHBiQmGhAWw"]))
+                    PlainToggle(text: L("Internal Storage"), isOn: mg_key_binding(["LBJfwOEzExRxzlAnSuI7eg"]))
+                    PlainToggle(text: L("Internal Features"), isOn: mg_internal_binding())
+                    PlainToggle(text: L("Metal HUD in All Apps"), isOn: mg_key_binding(["EqrsVvjcYDdxHBiQmGhAWw"]))
                 } header: {
                     Label("Internal", systemImage: "ant")
                 }
@@ -315,13 +316,13 @@ struct ContentView: View {
         var errorDescription: String? {
             switch self {
             case .missingArtworkSubtype:
-                return "Failed to get ArtworkDeviceSubType!"
+                return L("Failed to get ArtworkDeviceSubType!")
             case .missingArtworkDeviceName:
-                return "Failed to get ArtworkDeviceProductDescription!"
+                return L("Failed to get ArtworkDeviceProductDescription!")
             case .invalidIdentity(let message):
                 return message
             case .identityVerificationFailed:
-                return "The MobileGestalt file was written, but the requested identity values did not read back correctly."
+                return L("The MobileGestalt file was written, but the requested identity values did not read back correctly.")
             }
         }
     }
@@ -365,7 +366,7 @@ struct ContentView: View {
             load_identity_fields(from: cache_extra)
         } catch {
             print("(mg) failed to load data: \(error)")
-            Alertinator.shared.alert(title: "Failed to load current MobileGestalt!", body: "Restart the app and try again. Check logs for more detailed information.")
+            Alertinator.shared.alert(title: L("Failed to load current MobileGestalt!"), body: L("Restart the app and try again. Check logs for more detailed information."))
         }
     }
 
@@ -437,20 +438,20 @@ struct ContentView: View {
             let productType = custom_product_type.trimmingCharacters(in: .whitespacesAndNewlines)
 
             if !model.isEmpty && model.range(of: #"^A[0-9]{4}$"#, options: .regularExpression) == nil {
-                throw MGViewError.invalidIdentity("Regulatory Model must look like A2848 (A followed by four digits), or be left empty to keep the current value.")
+                throw MGViewError.invalidIdentity(L("Regulatory Model must look like A2848 (A followed by four digits), or be left empty to keep the current value."))
             }
             if regionCode.range(of: #"^[A-Z0-9]{1,4}$"#, options: .regularExpression) == nil {
-                throw MGViewError.invalidIdentity("Region Code must contain 1-4 uppercase letters/numbers, for example LL, ZP, J or CH.")
+                throw MGViewError.invalidIdentity(L("Region Code must contain 1-4 uppercase letters/numbers, for example LL, ZP, J or CH."))
             }
             if regionInfo.range(of: #"^[A-Z0-9]{1,4}/A$"#, options: .regularExpression) == nil {
-                throw MGViewError.invalidIdentity("Region Info must look like LL/A, ZP/A, J/A or CH/A.")
+                throw MGViewError.invalidIdentity(L("Region Info must look like LL/A, ZP/A, J/A or CH/A."))
             }
             if !productType.isEmpty && productType.range(of: #"^[A-Za-z]+[0-9]+,[0-9]+$"#, options: .regularExpression) == nil {
-                throw MGViewError.invalidIdentity("Product Type must look like iPhone16,1 or iPad16,3, or be left empty.")
+                throw MGViewError.invalidIdentity(L("Product Type must look like iPhone16,1 or iPad16,3, or be left empty."))
             }
 
             guard let cache_extra = mg_dict_now["CacheExtra"] as? NSMutableDictionary else {
-                throw MGViewError.invalidIdentity("MobileGestalt CacheExtra is missing.")
+                throw MGViewError.invalidIdentity(L("MobileGestalt CacheExtra is missing."))
             }
 
             cache_extra[regionCodeKey] = regionCode
@@ -483,16 +484,16 @@ struct ContentView: View {
                 throw MGViewError.identityVerificationFailed
             }
 
-            identity_status = "Verified: \(model.isEmpty ? "model unchanged" : model) · \(regionCode) · \(regionInfo) · \(productType.isEmpty ? "ProductType unchanged" : productType)"
+            identity_status = "\(L("Verified")): \(model.isEmpty ? L("model unchanged") : model) · \(regionCode) · \(regionInfo) · \(productType.isEmpty ? L("ProductType unchanged") : productType)"
             print("(identity) verified RegulatoryModel=\(model.isEmpty ? "unchanged" : model), RegionCode=\(regionCode), RegionInfo=\(regionInfo), ProductType=\(productType.isEmpty ? "unchanged" : productType)")
             mg_load()
-            Alertinator.shared.alert(title: "Identity patch verified", body: "The requested MobileGestalt identity values were written and read back successfully. Respring first; some region identity changes may require a full reboot.", actionLabel: "Respring", action: {
+            Alertinator.shared.alert(title: L("Identity patch verified"), body: L("The requested MobileGestalt identity values were written and read back successfully. Respring first; some region identity changes may require a full reboot."), actionLabel: L("Respring"), action: {
                 state.respring()
             })
         } catch {
-            identity_status = "Failed: \(error.localizedDescription)"
+            identity_status = "\(L("Failed")): \(error.localizedDescription)"
             print("(identity) failed: \(error)")
-            Alertinator.shared.alert(title: "Identity patch failed", body: error.localizedDescription)
+            Alertinator.shared.alert(title: L("Identity patch failed"), body: error.localizedDescription)
         }
     }
     
@@ -516,12 +517,12 @@ struct ContentView: View {
             mg_load()
 
             print("(mg) successfully overwrote mobilegestalt!")
-            Alertinator.shared.alert(title: "Successfully applied Gestalt tweaks!", body: "Respring your device for changes to take effect. Note that some tweaks may require a reboot for them to apply properly.", actionLabel: "Respring", action: {
+            Alertinator.shared.alert(title: L("Successfully applied Gestalt tweaks!"), body: L("Respring your device for changes to take effect. Note that some tweaks may require a reboot for them to apply properly."), actionLabel: L("Respring"), action: {
                 state.respring()
             })
         } catch {
             print("(mg) failed to apply mobilegestalt: \(error)")
-            Alertinator.shared.alert(title: "Failed to apply MobileGestalt!", body: "Restart the app and try again. Check logs for more detailed information.")
+            Alertinator.shared.alert(title: L("Failed to apply MobileGestalt!"), body: L("Restart the app and try again. Check logs for more detailed information."))
         }
     }
     
@@ -533,10 +534,10 @@ struct ContentView: View {
             mg_load()
 
             print("(mg) successfully reverted mobilegestalt!)")
-            Alertinator.shared.alert(title: "Successfully reverted Gestalt tweaks!", body: "Reboot your device for changes to take effect.")
+            Alertinator.shared.alert(title: L("Successfully reverted Gestalt tweaks!"), body: L("Reboot your device for changes to take effect."))
         } catch {
             print("(mg) failed to revert mobilegestalt: \(error)")
-            Alertinator.shared.alert(title: "Failed to revert MobileGestalt!", body: "Check logs for error information.")
+            Alertinator.shared.alert(title: L("Failed to revert MobileGestalt!"), body: L("Check logs for error information."))
         }
     }
 
@@ -601,7 +602,7 @@ struct ContentView: View {
             return false
         }, set: { enabled in
             if enabled {
-                Alertinator.shared.alert(title: "Warning!", body: "This is a very dangerous tweak to use! If you use an alphanumeric passcode, DO NOT USE THIS TWEAK AT ALL! Please do not turn off \"Show Dock In Stage Manager\" or your device will BOOTLOOP when rotating to landscape! With these two things in mind, you may experience general instability, or other major issues such as app data randomly disappearing. I'm honestly not too certain why you'd want to use this tweak anyways, it's not like your device is gonna be all that usable (due to apps scaling weirdly) when it's enabled.")
+                Alertinator.shared.alert(title: L("Warning!"), body: L("This is a very dangerous tweak to use! If you use an alphanumeric passcode, DO NOT USE THIS TWEAK AT ALL! Please do not turn off \"Show Dock In Stage Manager\" or your device will BOOTLOOP when rotating to landscape! With these two things in mind, you may experience general instability, or other major issues such as app data randomly disappearing. I'm honestly not too certain why you'd want to use this tweak anyways, it's not like your device is gonna be all that usable (due to apps scaling weirdly) when it's enabled."))
             }
             
             cache_data.mutableBytes.storeBytes(of: enabled ? 3 : 1, toByteOffset: value_off, as: Int.self)
@@ -630,7 +631,7 @@ struct ContentView: View {
             },
             set: { enabled in
                 if enabled {
-                    Alertinator.shared.alert(title: "Warning!", body: "Please do not use this feature to bypass region restrictions that would equate to breaking regional laws (e.g. disabling the camera shutter sound). We will NOT be held responsible for enabling any illegal activites!")
+                    Alertinator.shared.alert(title: L("Warning!"), body: L("Please do not use this feature to bypass region restrictions that would equate to breaking regional laws (e.g. disabling the camera shutter sound). We will NOT be held responsible for enabling any illegal activites!"))
                     cache_extra[regionCodeKey] = "LL"
                     cache_extra[legacyRegionInfoKey] = "LL/A"
                     cache_extra[sysconfigRegionInfoKey] = "LL/A"
