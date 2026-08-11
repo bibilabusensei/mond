@@ -81,12 +81,12 @@ struct SettingsView: View {
                     NavigationLink {
                         AppleIntelligenceDiagnosticsView()
                     } label: {
-                        Label("Apple Intelligence Diagnostics", systemImage: "brain.head.profile")
+                        Label(L("Apple Intelligence Diagnostics"), systemImage: "brain.head.profile")
                     }
                 } header: {
-                    Label("Diagnostics", systemImage: "stethoscope")
+                    Label(L("Diagnostics"), systemImage: "stethoscope")
                 } footer: {
-                    Text("Read MobileGestalt identity values and attempt a read-only inspection of eligibilityd to locate the remaining Apple Intelligence eligibility failure.")
+                    Text(L("Read MobileGestalt identity values and attempt a read-only inspection of eligibilityd to locate the remaining Apple Intelligence eligibility failure."))
                 }
                 
                 Section {

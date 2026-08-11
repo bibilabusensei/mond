@@ -57,9 +57,9 @@ struct AppleIntelligenceDiagnosticsView: View {
                     diagnosticRow(item)
                 }
             } header: {
-                Label("System Environment", systemImage: "iphone")
+                Label(L("System Environment"), systemImage: "iphone")
             } footer: {
-                Text("This page is read-only. The device language shown here is the app/system preferred language; Siri language is evaluated separately by iOS and may only appear inside eligibilityd data when that file is readable.")
+                Text(L("This page is read-only. The device language shown here is the app/system preferred language; Siri language is evaluated separately by iOS and may only appear inside eligibilityd data when that file is readable."))
             }
 
             Section {
@@ -67,7 +67,7 @@ struct AppleIntelligenceDiagnosticsView: View {
                     diagnosticRow(item)
                 }
             } header: {
-                Label("MobileGestalt Identity", systemImage: "checklist")
+                Label(L("MobileGestalt Identity"), systemImage: "checklist")
             }
 
             Section {
@@ -91,16 +91,16 @@ struct AppleIntelligenceDiagnosticsView: View {
                     }
                 }
             } header: {
-                Label("Apple Intelligence Eligibility", systemImage: "brain.head.profile")
+                Label(L("Apple Intelligence Eligibility"), systemImage: "brain.head.profile")
             } footer: {
-                Text("Mond only attempts to read eligibilityd here. It does not modify eligibility.plist. If access is denied, that result is useful: the current MobileGestalt sandbox token does not grant access to eligibilityd and a different read path would be required before deeper diagnosis.")
+                Text(L("Mond only attempts to read eligibilityd here. It does not modify eligibility.plist. If access is denied, that result is useful: the current MobileGestalt sandbox token does not grant access to eligibilityd and a different read path would be required before deeper diagnosis."))
             }
 
             Section {
                 Button {
                     refreshDiagnostics()
                 } label: {
-                    Label("Refresh Diagnostics", systemImage: "arrow.clockwise")
+                    Label(L("Refresh Diagnostics"), systemImage: "arrow.clockwise")
                 }
 
                 if let lastUpdated {
@@ -110,7 +110,7 @@ struct AppleIntelligenceDiagnosticsView: View {
                 }
             }
         }
-        .navigationTitle("AI Diagnostics")
+        .navigationTitle(L("AI Diagnostics"))
         .onAppear {
             refreshDiagnostics()
         }

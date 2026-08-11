@@ -218,7 +218,7 @@ struct ContentView: View {
 
                     TextField("Regulatory Model (e.g. A2848)", text: $custom_regulatory_model)
                     HStack {
-                        Text("Detected Retail Model Base")
+                        Text(L("Detected Retail Model Base"))
                         Spacer()
                         Text(custom_model_number.isEmpty ? L("(missing)") : custom_model_number)
                             .foregroundStyle(.secondary)
