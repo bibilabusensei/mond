@@ -1,0 +1,77 @@
+name: patch retail model handling
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch ContentView retail model handling
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('mond/views/ContentView.swift')
+          s = path.read_text()
+          original = s
+
+          s = s.replace(
+              '                    TextField("Retail Model Base (e.g. MTQ83)", text: $custom_model_number)\n',
+              '''                    HStack {\n                        Text("Detected Retail Model Base")\n                        Spacer()\n                        Text(custom_model_number.isEmpty ? L("(missing)") : custom_model_number)\n                            .foregroundStyle(.secondary)\n                            .textSelection(.enabled)\n                    }\n'''
+          )
+
+          s = s.replace(
+              '            let retailModel = custom_model_number.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()\n',
+              ''
+          )
+
+          s = s.replace(
+              '''            if !retailModel.isEmpty && retailModel.range(of: #"^[A-Z0-9]{5}$"#, options: .regularExpression) == nil {\n                throw MGViewError.invalidIdentity("Retail Model Base must contain exactly five letters/numbers, for example MTQ83.")\n            }\n''',
+              ''
+          )
+
+          s = s.replace(
+              '''            if !retailModel.isEmpty {\n                cache_extra[modelNumberKey] = retailModel\n            }\n''',
+              ''
+          )
+
+          s = s.replace(
+              '            let retailOK = retailModel.isEmpty || verifiedCache[modelNumberKey] as? String == retailModel\n',
+              '            let retailOK = true // ModelNumber is detected/read-only; do not write it back.\n'
+          )
+
+          s = s.replace(
+              '            let retailDisplay = retailModel.isEmpty ? L("model unchanged") : "\\(retailModel)\\(regionInfo)"\n',
+              '            let retailDisplay = custom_model_number.isEmpty ? L("model unchanged") : "\\(custom_model_number)\\(regionInfo)"\n'
+          )
+
+          if s == original:
+              print('No retail model patch needed; already applied.')
+          else:
+              path.write_text(s)
+              print('Patched ContentView.swift')
+          PY
+
+      - name: Commit patch if needed
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mond/views/ContentView.swift
+          git commit -m "Make retail model auto-detected and read-only"
+          git push
