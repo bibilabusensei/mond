@@ -31,13 +31,20 @@ private func GE(_ key: String) -> String {
 
 /// Uses the upstream GestaltEdit access/write implementation directly while
 /// keeping Mond's independent in-app language switch and diagnostics UI.
+///
+/// Safety rule: source mode only patches devices that are already officially
+/// Apple-Intelligence capable. It does not use GestaltEdit's forced device
+/// identity spoof fallback for unsupported hardware.
 struct GestaltEditCompatibilityView: View {
     @State private var status: String = ""
     @State private var currentValues: [String] = []
     @State private var detectedProductType: String = ""
+    @State private var detectedMarketingName: String = ""
     @State private var targetRegulatoryModel: String = ""
     @State private var mobileGestaltValid = false
     @State private var sourceEngineReady = false
+    @State private var alreadyConfigured = false
+    @State private var lastBackupName = ""
 
     private let access = GestaltAccess.shared()
 
@@ -47,7 +54,7 @@ struct GestaltEditCompatibilityView: View {
     private let thinningProductTypeKey = "0+nc/Udy4WNG8S+Q7a/s1A"
 
     // Display-only fields. The source-compatible patch does not modify them on
-    // an already-supported iPhone.
+    // an already-supported iPhone/iPad.
     private let legacyRegionInfoKey = "zHeENZu+wbg7PUprwNwBWg"
     private let productTypeKey = "h9jDsbgj7xIVeIQ8S3/X3Q"
     private let modelNumberKey = "D0cJ8r7U5zve6uA6QbOiLA"
@@ -61,12 +68,25 @@ struct GestaltEditCompatibilityView: View {
                 LabeledContent(GE("Write engine"), value: GE("GestaltEdit upstream source"))
                 LabeledContent(L("MobileGestalt"), value: mobileGestaltValid ? L("Valid") : L("Invalid / unreadable"))
                 LabeledContent(GE("Source engine"), value: sourceEngineReady ? GE("Ready") : GE("Unavailable"))
-                LabeledContent("ThinningProductType", value: detectedProductType.isEmpty ? L("(missing)") : detectedProductType)
+                LabeledContent(GE("Detected device"), value: detectedDeviceLabel)
                 LabeledContent(L("Target regulatory model"), value: targetRegulatoryModel.isEmpty ? L("Unsupported") : targetRegulatoryModel)
+                LabeledContent(GE("Patch state"), value: alreadyConfigured ? GE("Already configured") : GE("Needs patch"))
             } header: {
                 Label(GE("GestaltEdit source mode"), systemImage: "checkmark.shield")
             } footer: {
-                Text(GE("This page now uses GestaltEdit's original bad_query lease and in-place MobileGestalt writer directly. Mond only provides the translated UI, backup display, and diagnostics around it."))
+                Text(GE("This page uses GestaltEdit's original bad_query lease and in-place MobileGestalt writer directly. Mond adds an independent translated UI, safe supported-device detection, backup status, and diagnostics around it."))
+            }
+
+            if alreadyConfigured {
+                Section {
+                    Label(GE("US Apple Intelligence region patch is already active"), systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text(GE("No rewrite is needed. If Apple Intelligence assets are downloading, leave the region patch alone and let the download finish."))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text(GE("Current status"))
+                }
             }
 
             Section {
@@ -83,14 +103,22 @@ struct GestaltEditCompatibilityView: View {
                 Button {
                     applySourcePatch()
                 } label: {
-                    Label(GE("Apply GestaltEdit US AI patch"), systemImage: "wand.and.stars")
+                    Label(
+                        alreadyConfigured ? GE("Already configured — no write needed") : GE("Apply GestaltEdit US AI patch"),
+                        systemImage: alreadyConfigured ? "checkmark.circle" : "wand.and.stars"
+                    )
                 }
-                .disabled(!mobileGestaltValid || !sourceEngineReady || targetRegulatoryModel.isEmpty)
+                .disabled(!canApplyPatch)
 
                 Button {
                     loadState()
                 } label: {
                     Label(L("Reload Current Values"), systemImage: "arrow.clockwise")
+                }
+
+                if !lastBackupName.isEmpty {
+                    LabeledContent(GE("Last backup"), value: lastBackupName)
+                        .font(.footnote)
                 }
 
                 if !status.isEmpty {
@@ -101,7 +129,8 @@ struct GestaltEditCompatibilityView: View {
                 }
             } footer: {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(GE("A byte-for-byte backup of the live MobileGestalt file is saved before writing. Only RegionCode, RegionInfoFromSysconfig, and RegulatoryModelNumber are changed for an already-supported iPhone, matching GestaltEdit. Restart only after the result says Verified and MobileGestalt remains valid."))
+                    Text(GE("A byte-for-byte backup of the live MobileGestalt file is saved before writing. On a supported device only RegionCode, RegionInfoFromSysconfig, and RegulatoryModelNumber are changed, matching GestaltEdit. Restart only after the result says Verified and MobileGestalt remains valid."))
+                    Text(GE("Unsupported hardware is not force-spoofed in this safe source mode."))
                     Text(GE("GestaltEdit source mode keeps iPhone system language independent from the app language."))
                 }
             }
@@ -110,11 +139,29 @@ struct GestaltEditCompatibilityView: View {
         .onAppear(perform: loadState)
     }
 
+    private var detectedDeviceLabel: String {
+        if !detectedMarketingName.isEmpty {
+            return "\(detectedMarketingName) · \(detectedProductType)"
+        }
+        return detectedProductType.isEmpty ? L("(missing)") : detectedProductType
+    }
+
+    private var canApplyPatch: Bool {
+        mobileGestaltValid
+            && sourceEngineReady
+            && !targetRegulatoryModel.isEmpty
+            && !alreadyConfigured
+    }
+
     private func loadState() {
         status = ""
         mobileGestaltValid = false
         sourceEngineReady = false
+        alreadyConfigured = false
         currentValues = []
+        detectedProductType = ""
+        detectedMarketingName = ""
+        targetRegulatoryModel = ""
 
         do {
             try access.connect()
@@ -127,8 +174,17 @@ struct GestaltEditCompatibilityView: View {
             }
 
             mobileGestaltValid = true
-            detectedProductType = (cache[thinningProductTypeKey] as? String) ?? machineName()
-            targetRegulatoryModel = usRegulatoryModel(for: detectedProductType) ?? ""
+
+            let rawProductType = (cache[thinningProductTypeKey] as? String) ?? machineName()
+            detectedProductType = rawProductType.split(separator: "-").first.map(String.init) ?? rawProductType
+
+            if let profile = GestaltEditAIProfile.resolve(cacheExtra: cache, machineIdentifier: machineName()) {
+                detectedProductType = profile.productType
+                detectedMarketingName = profile.marketingName
+                targetRegulatoryModel = profile.regulatoryModel
+            }
+
+            alreadyConfigured = isPatchConfigured(cache)
 
             currentValues = [
                 "RegionCode = \(display(cache[regionCodeKey]))",
@@ -149,8 +205,13 @@ struct GestaltEditCompatibilityView: View {
     }
 
     private func applySourcePatch() {
-        guard mobileGestaltValid, sourceEngineReady, !targetRegulatoryModel.isEmpty else {
-            status = GE("Cannot apply: MobileGestalt or a supported device profile is missing.")
+        guard mobileGestaltValid, sourceEngineReady else {
+            status = GE("Cannot apply: MobileGestalt or the GestaltEdit source engine is unavailable.")
+            return
+        }
+
+        guard !alreadyConfigured else {
+            status = GE("Already configured. No MobileGestalt write was performed.")
             return
         }
 
@@ -159,19 +220,24 @@ struct GestaltEditCompatibilityView: View {
             guard !originalData.isEmpty else {
                 throw CompatibilityError.invalidGestalt
             }
-            try saveBackup(originalData)
 
             guard var current = try access.readGestalt() as? [String: Any],
                   var cache = current["CacheExtra"] as? [String: Any] else {
                 throw CompatibilityError.invalidGestalt
             }
 
-            // This is the supported-device path used by upstream GestaltEdit.
-            // Do not touch ProductType, CPU/hardware model, ModelNumber,
-            // green-tea/not-green-tea, or the generative-model capability here.
+            guard let profile = GestaltEditAIProfile.resolve(cacheExtra: cache, machineIdentifier: machineName()) else {
+                throw CompatibilityError.unsupportedDevice
+            }
+
+            lastBackupName = try saveBackup(originalData)
+
+            // Supported-device path used by upstream GestaltEdit. Do not touch
+            // ProductType, CPU/hardware model, ModelNumber, green-tea,
+            // not-green-tea, or the generative-model capability here.
             cache[regionCodeKey] = "LL"
             cache[sysconfigRegionInfoKey] = "LL/A"
-            cache[regulatoryModelKey] = targetRegulatoryModel
+            cache[regulatoryModelKey] = profile.regulatoryModel
             current["CacheExtra"] = cache
 
             try access.saveGestalt(current)
@@ -180,12 +246,13 @@ struct GestaltEditCompatibilityView: View {
                   let verifyCache = verify["CacheExtra"] as? [String: Any],
                   verifyCache[regionCodeKey] as? String == "LL",
                   verifyCache[sysconfigRegionInfoKey] as? String == "LL/A",
-                  verifyCache[regulatoryModelKey] as? String == targetRegulatoryModel else {
+                  verifyCache[regulatoryModelKey] as? String == profile.regulatoryModel else {
                 throw CompatibilityError.verificationFailed
             }
 
             mobileGestaltValid = true
-            status = "\(L("Verified")): LL · LL/A · \(targetRegulatoryModel)\n\(GE("GestaltEdit source write verified. MobileGestalt is valid. Restart the iPhone to apply the change."))"
+            alreadyConfigured = true
+            status = "\(L("Verified")): LL · LL/A · \(profile.regulatoryModel)\n\(GE("GestaltEdit source write verified. MobileGestalt is valid. Restart the iPhone to apply the change."))"
             loadStatePreservingStatus()
         } catch {
             mobileGestaltValid = sourceGestaltStillValid()
@@ -194,18 +261,31 @@ struct GestaltEditCompatibilityView: View {
         }
     }
 
-    private func saveBackup(_ data: Data) throws {
+    private func isPatchConfigured(_ cache: [String: Any]) -> Bool {
+        guard !targetRegulatoryModel.isEmpty else { return false }
+        return cache[regionCodeKey] as? String == "LL"
+            && cache[sysconfigRegionInfoKey] as? String == "LL/A"
+            && cache[regulatoryModelKey] as? String == targetRegulatoryModel
+    }
+
+    @discardableResult
+    private func saveBackup(_ data: Data) throws -> String {
         let directory = URL(fileURLWithPath: AppPaths.backups)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let stamp = Int(Date().timeIntervalSince1970)
-        let url = directory.appendingPathComponent("GestaltEditSource-\(stamp).plist")
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        let filename = "GestaltEditSource-\(formatter.string(from: Date())).plist"
+        let url = directory.appendingPathComponent(filename)
         try data.write(to: url, options: [.atomic])
+        return filename
     }
 
     private func loadStatePreservingStatus() {
         let savedStatus = status
+        let savedBackup = lastBackupName
         loadState()
         status = savedStatus
+        lastBackupName = savedBackup
     }
 
     private func sourceGestaltStillValid() -> Bool {
@@ -224,21 +304,6 @@ struct GestaltEditCompatibilityView: View {
         return String(describing: value)
     }
 
-    /// Same supported-iPhone mapping used by GestaltEdit.
-    private func usRegulatoryModel(for productType: String) -> String? {
-        let base = productType.split(separator: "-").first.map(String.init) ?? productType
-        switch base {
-        case "iPhone16,1": return "A2848"
-        case "iPhone16,2": return "A2849"
-        case "iPhone17,1": return "A3083"
-        case "iPhone17,2": return "A3084"
-        case "iPhone17,3": return "A3081"
-        case "iPhone17,4": return "A3082"
-        case "iPhone17,5": return "A3212"
-        default: return nil
-        }
-    }
-
     private func machineName() -> String {
         var sysInfo = utsname()
         uname(&sysInfo)
@@ -252,12 +317,15 @@ struct GestaltEditCompatibilityView: View {
 
 private enum CompatibilityError: LocalizedError {
     case invalidGestalt
+    case unsupportedDevice
     case verificationFailed
 
     var errorDescription: String? {
         switch self {
         case .invalidGestalt:
             return L("MobileGestalt is empty or invalid. Do not restart the device.")
+        case .unsupportedDevice:
+            return GE("This device is not in GestaltEdit's supported Apple Intelligence profile list. Safe source mode will not force-spoof it.")
         case .verificationFailed:
             return L("The compatibility values were written but did not verify correctly.")
         }
