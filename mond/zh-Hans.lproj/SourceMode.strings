@@ -1,0 +1,12 @@
+"Write engine" = "写入引擎";
+"GestaltEdit upstream source" = "GestaltEdit 原版源码";
+"Source engine" = "源码引擎";
+"Ready" = "就绪";
+"Unavailable" = "不可用";
+"GestaltEdit source mode" = "GestaltEdit 源码模式";
+"This page now uses GestaltEdit's original bad_query lease and in-place MobileGestalt writer directly. Mond only provides the translated UI, backup display, and diagnostics around it." = "此页面直接使用 GestaltEdit 原版的 bad_query 沙盒授权与 MobileGestalt 原地写入实现。Mond 只在外层提供中文界面、备份显示和诊断功能。";
+"Apply GestaltEdit US AI patch" = "应用 GestaltEdit 美国区 AI 修改";
+"A byte-for-byte backup of the live MobileGestalt file is saved before writing. Only RegionCode, RegionInfoFromSysconfig, and RegulatoryModelNumber are changed for an already-supported iPhone, matching GestaltEdit. Restart only after the result says Verified and MobileGestalt remains valid." = "写入前会逐字节备份当前 MobileGestalt。对于本身已支持 Apple Intelligence 的 iPhone，只修改 RegionCode、RegionInfoFromSysconfig 和 RegulatoryModelNumber，与 GestaltEdit 原版一致。只有显示“已验证”且 MobileGestalt 仍有效时才能重启。";
+"Cannot apply: MobileGestalt or a supported device profile is missing." = "无法应用：MobileGestalt 无效，或无法识别受支持的设备型号。";
+"GestaltEdit source write verified. MobileGestalt is valid. Restart the iPhone to apply the change." = "GestaltEdit 原版源码写入已验证，MobileGestalt 有效。请完整重启 iPhone 使修改生效。";
+"GestaltEdit source mode keeps iPhone system language independent from the app language." = "GestaltEdit 源码模式的界面语言与 iPhone 系统语言相互独立。";
