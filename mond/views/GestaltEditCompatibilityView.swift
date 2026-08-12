@@ -1,5 +1,34 @@
 import SwiftUI
 
+private func GE(_ key: String) -> String {
+    let configured = currentAppLanguage()
+    let effective: AppLanguage
+
+    if configured == .system {
+        let preferred = Locale.preferredLanguages.first?.lowercased() ?? "en"
+        if preferred.hasPrefix("zh-hant") || preferred.hasPrefix("zh-tw") || preferred.hasPrefix("zh-hk") {
+            effective = .zhHant
+        } else if preferred.hasPrefix("zh") {
+            effective = .zhHans
+        } else if preferred.hasPrefix("ja") {
+            effective = .ja
+        } else {
+            effective = .en
+        }
+    } else {
+        effective = configured
+    }
+
+    if effective != .en,
+       let path = Bundle.main.path(forResource: effective.rawValue, ofType: "lproj"),
+       let bundle = Bundle(path: path) {
+        let translated = bundle.localizedString(forKey: key, value: key, table: "SourceMode")
+        if translated != key { return translated }
+    }
+
+    return L(key)
+}
+
 /// Uses the upstream GestaltEdit access/write implementation directly while
 /// keeping Mond's independent in-app language switch and diagnostics UI.
 struct GestaltEditCompatibilityView: View {
@@ -29,15 +58,15 @@ struct GestaltEditCompatibilityView: View {
     var body: some View {
         List {
             Section {
-                LabeledContent(L("Write engine"), value: L("GestaltEdit upstream source"))
+                LabeledContent(GE("Write engine"), value: GE("GestaltEdit upstream source"))
                 LabeledContent(L("MobileGestalt"), value: mobileGestaltValid ? L("Valid") : L("Invalid / unreadable"))
-                LabeledContent(L("Source engine"), value: sourceEngineReady ? L("Ready") : L("Unavailable"))
+                LabeledContent(GE("Source engine"), value: sourceEngineReady ? GE("Ready") : GE("Unavailable"))
                 LabeledContent("ThinningProductType", value: detectedProductType.isEmpty ? L("(missing)") : detectedProductType)
                 LabeledContent(L("Target regulatory model"), value: targetRegulatoryModel.isEmpty ? L("Unsupported") : targetRegulatoryModel)
             } header: {
-                Label(L("GestaltEdit source mode"), systemImage: "checkmark.shield")
+                Label(GE("GestaltEdit source mode"), systemImage: "checkmark.shield")
             } footer: {
-                Text(L("This page now uses GestaltEdit's original bad_query lease and in-place MobileGestalt writer directly. Mond only provides the translated UI, backup display, and diagnostics around it."))
+                Text(GE("This page now uses GestaltEdit's original bad_query lease and in-place MobileGestalt writer directly. Mond only provides the translated UI, backup display, and diagnostics around it."))
             }
 
             Section {
@@ -54,7 +83,7 @@ struct GestaltEditCompatibilityView: View {
                 Button {
                     applySourcePatch()
                 } label: {
-                    Label(L("Apply GestaltEdit US AI patch"), systemImage: "wand.and.stars")
+                    Label(GE("Apply GestaltEdit US AI patch"), systemImage: "wand.and.stars")
                 }
                 .disabled(!mobileGestaltValid || !sourceEngineReady || targetRegulatoryModel.isEmpty)
 
@@ -71,7 +100,10 @@ struct GestaltEditCompatibilityView: View {
                         .textSelection(.enabled)
                 }
             } footer: {
-                Text(L("A byte-for-byte backup of the live MobileGestalt file is saved before writing. Only RegionCode, RegionInfoFromSysconfig, and RegulatoryModelNumber are changed for an already-supported iPhone, matching GestaltEdit. Restart only after the result says Verified and MobileGestalt remains valid."))
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(GE("A byte-for-byte backup of the live MobileGestalt file is saved before writing. Only RegionCode, RegionInfoFromSysconfig, and RegulatoryModelNumber are changed for an already-supported iPhone, matching GestaltEdit. Restart only after the result says Verified and MobileGestalt remains valid."))
+                    Text(GE("GestaltEdit source mode keeps iPhone system language independent from the app language."))
+                }
             }
         }
         .navigationTitle(L("GestaltEdit AI Mode"))
@@ -118,7 +150,7 @@ struct GestaltEditCompatibilityView: View {
 
     private func applySourcePatch() {
         guard mobileGestaltValid, sourceEngineReady, !targetRegulatoryModel.isEmpty else {
-            status = L("Cannot apply: MobileGestalt or a supported device profile is missing.")
+            status = GE("Cannot apply: MobileGestalt or a supported device profile is missing.")
             return
         }
 
@@ -153,7 +185,7 @@ struct GestaltEditCompatibilityView: View {
             }
 
             mobileGestaltValid = true
-            status = "\(L("Verified")): LL · LL/A · \(targetRegulatoryModel)\n\(L("GestaltEdit source write verified. MobileGestalt is valid. Restart the iPhone to apply the change."))"
+            status = "\(L("Verified")): LL · LL/A · \(targetRegulatoryModel)\n\(GE("GestaltEdit source write verified. MobileGestalt is valid. Restart the iPhone to apply the change."))"
             loadStatePreservingStatus()
         } catch {
             mobileGestaltValid = sourceGestaltStillValid()
