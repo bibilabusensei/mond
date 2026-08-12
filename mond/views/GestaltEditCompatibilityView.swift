@@ -1,43 +1,43 @@
 import SwiftUI
 
+/// Uses the upstream GestaltEdit access/write implementation directly while
+/// keeping Mond's independent in-app language switch and diagnostics UI.
 struct GestaltEditCompatibilityView: View {
-    @AppStorage("token") private var token: String = ""
-
     @State private var status: String = ""
     @State private var currentValues: [String] = []
     @State private var detectedProductType: String = ""
     @State private var targetRegulatoryModel: String = ""
     @State private var mobileGestaltValid = false
-    @State private var baselineAvailable = false
+    @State private var sourceEngineReady = false
+
+    private let access = GestaltAccess.shared()
 
     private let regionCodeKey = "h63QSdBCiT/z0WU6rdQv6Q"
     private let sysconfigRegionInfoKey = "yK+xavymRGZ3xWc1tb8XDg"
     private let regulatoryModelKey = "97JDvERpVwO+GHtthIh7hA"
     private let thinningProductTypeKey = "0+nc/Udy4WNG8S+Q7a/s1A"
 
-    // Keys touched by earlier Mond experiments. GestaltEdit does not need these
-    // for an Apple-Intelligence-capable iPhone, so compatibility mode restores
-    // them from Mond's original backup before applying the three-key US patch.
+    // Display-only fields. The source-compatible patch does not modify them on
+    // an already-supported iPhone.
     private let legacyRegionInfoKey = "zHeENZu+wbg7PUprwNwBWg"
     private let productTypeKey = "h9jDsbgj7xIVeIQ8S3/X3Q"
     private let modelNumberKey = "D0cJ8r7U5zve6uA6QbOiLA"
     private let greenTeaKey = "iyfxmLogGVIaH7aEgqwcIA"
     private let notGreenTeaKey = "4snMZS8LJkSctKypt2m+xA"
     private let appleIntelligenceKey = "A62OafQ85EJAiiqKn4agtg"
-    private let hardwareModelKey = "oYicEKzVTz4/CxxE05pEgQ"
-    private let cpuModelKey = "5pYKlGnYYBzGvAlIU8RjEQ"
 
     var body: some View {
         List {
             Section {
+                LabeledContent(L("Write engine"), value: L("GestaltEdit upstream source"))
                 LabeledContent(L("MobileGestalt"), value: mobileGestaltValid ? L("Valid") : L("Invalid / unreadable"))
-                LabeledContent(L("Original backup"), value: baselineAvailable ? L("Available") : L("Missing"))
+                LabeledContent(L("Source engine"), value: sourceEngineReady ? L("Ready") : L("Unavailable"))
                 LabeledContent("ThinningProductType", value: detectedProductType.isEmpty ? L("(missing)") : detectedProductType)
                 LabeledContent(L("Target regulatory model"), value: targetRegulatoryModel.isEmpty ? L("Unsupported") : targetRegulatoryModel)
             } header: {
-                Label(L("GestaltEdit compatibility"), systemImage: "checkmark.shield")
+                Label(L("GestaltEdit source mode"), systemImage: "checkmark.shield")
             } footer: {
-                Text(L("This mode mirrors GestaltEdit's Siri AI US-region patch for already-supported iPhones: RegionCode=LL, RegionInfoFromSysconfig=LL/A, and the matching US regulatory model. It does not write SysCfg."))
+                Text(L("This page now uses GestaltEdit's original bad_query lease and in-place MobileGestalt writer directly. Mond only provides the translated UI, backup display, and diagnostics around it."))
             }
 
             Section {
@@ -52,11 +52,11 @@ struct GestaltEditCompatibilityView: View {
 
             Section {
                 Button {
-                    applyCompatibilityPatch()
+                    applySourcePatch()
                 } label: {
-                    Label(L("Apply GestaltEdit-compatible US AI patch"), systemImage: "wand.and.stars")
+                    Label(L("Apply GestaltEdit US AI patch"), systemImage: "wand.and.stars")
                 }
-                .disabled(!mobileGestaltValid || !baselineAvailable || targetRegulatoryModel.isEmpty)
+                .disabled(!mobileGestaltValid || !sourceEngineReady || targetRegulatoryModel.isEmpty)
 
                 Button {
                     loadState()
@@ -71,43 +71,30 @@ struct GestaltEditCompatibilityView: View {
                         .textSelection(.enabled)
                 }
             } footer: {
-                Text(L("Before writing, Mond saves the current plist and restores extra identity fields previously changed by Mond from the original backup. It then preserves the original plist format and writes the existing MobileGestalt file in place, matching GestaltEdit's write behavior instead of replacing the file. Only restart the iPhone after the result says Verified and MobileGestalt remains valid."))
+                Text(L("A byte-for-byte backup of the live MobileGestalt file is saved before writing. Only RegionCode, RegionInfoFromSysconfig, and RegulatoryModelNumber are changed for an already-supported iPhone, matching GestaltEdit. Restart only after the result says Verified and MobileGestalt remains valid."))
             }
         }
         .navigationTitle(L("GestaltEdit AI Mode"))
-        .onAppear {
-            if !token.isEmpty {
-                _ = sandbox_extension_consume(token)
-            }
-            loadState()
-        }
+        .onAppear(perform: loadState)
     }
 
     private func loadState() {
         status = ""
         mobileGestaltValid = false
-        baselineAvailable = false
+        sourceEngineReady = false
         currentValues = []
 
         do {
-            let currentURL = URL(fileURLWithPath: TweakPaths.gestalt)
-            let currentData = try Data(contentsOf: currentURL)
-            guard !currentData.isEmpty,
-                  let current = try PropertyListSerialization.propertyList(from: currentData, options: [], format: nil) as? [String: Any],
+            try access.connect()
+            sourceEngineReady = true
+
+            guard let current = try access.readGestalt() as? [String: Any],
                   let cache = current["CacheExtra"] as? [String: Any] else {
                 status = L("MobileGestalt is empty or invalid. Do not restart the device.")
                 return
             }
 
             mobileGestaltValid = true
-
-            let backupURL = URL(fileURLWithPath: AppPaths.backups).appendingPathComponent("SavedGestalt.plist")
-            if let backupData = try? Data(contentsOf: backupURL),
-               let backup = try? PropertyListSerialization.propertyList(from: backupData, options: [], format: nil) as? [String: Any],
-               backup["CacheExtra"] is [String: Any] {
-                baselineAvailable = true
-            }
-
             detectedProductType = (cache[thinningProductTypeKey] as? String) ?? machineName()
             targetRegulatoryModel = usRegulatoryModel(for: detectedProductType) ?? ""
 
@@ -124,89 +111,40 @@ struct GestaltEditCompatibilityView: View {
                 "Apple Intelligence capability = \(display(cache[appleIntelligenceKey]))"
             ]
         } catch {
+            sourceEngineReady = false
             status = "\(L("Read failed")): \(error.localizedDescription)\n\(L("Do not restart the device."))"
         }
     }
 
-    private func applyCompatibilityPatch() {
-        guard mobileGestaltValid, baselineAvailable, !targetRegulatoryModel.isEmpty else {
-            status = L("Cannot apply: MobileGestalt, the original backup, or a supported device profile is missing.")
+    private func applySourcePatch() {
+        guard mobileGestaltValid, sourceEngineReady, !targetRegulatoryModel.isEmpty else {
+            status = L("Cannot apply: MobileGestalt or a supported device profile is missing.")
             return
         }
 
         do {
-            let targetURL = URL(fileURLWithPath: TweakPaths.gestalt)
-            let currentData = try Data(contentsOf: targetURL)
-            guard !currentData.isEmpty else {
+            let originalData = try access.readGestaltData()
+            guard !originalData.isEmpty else {
                 throw CompatibilityError.invalidGestalt
             }
+            try saveBackup(originalData)
 
-            var sourceFormat = PropertyListSerialization.PropertyListFormat.binary
-            guard var current = try PropertyListSerialization.propertyList(
-                from: currentData,
-                options: [],
-                format: &sourceFormat
-            ) as? [String: Any],
+            guard var current = try access.readGestalt() as? [String: Any],
                   var cache = current["CacheExtra"] as? [String: Any] else {
                 throw CompatibilityError.invalidGestalt
             }
 
-            let originalURL = URL(fileURLWithPath: AppPaths.backups).appendingPathComponent("SavedGestalt.plist")
-            let originalData = try Data(contentsOf: originalURL)
-            guard let original = try PropertyListSerialization.propertyList(from: originalData, options: [], format: nil) as? [String: Any],
-                  let originalCache = original["CacheExtra"] as? [String: Any] else {
-                throw CompatibilityError.missingOriginalBackup
-            }
-
-            // Preserve a snapshot of the exact pre-compatibility state.
-            let stamp = Int(Date().timeIntervalSince1970)
-            let snapshotURL = URL(fileURLWithPath: AppPaths.backups)
-                .appendingPathComponent("BeforeGestaltEditCompat-\(stamp).plist")
-            try currentData.write(to: snapshotURL, options: [.atomic])
-
-            // Revert fields our earlier experiments changed, so the resulting
-            // delta matches GestaltEdit as closely as possible on supported devices.
-            let restoreKeys = [
-                legacyRegionInfoKey,
-                productTypeKey,
-                modelNumberKey,
-                greenTeaKey,
-                notGreenTeaKey,
-                appleIntelligenceKey,
-                hardwareModelKey,
-                cpuModelKey
-            ]
-
-            for key in restoreKeys {
-                if let originalValue = originalCache[key] {
-                    cache[key] = originalValue
-                } else {
-                    cache.removeValue(forKey: key)
-                }
-            }
-
-            // GestaltEdit's supported-device Siri AI US-region patch.
+            // This is the supported-device path used by upstream GestaltEdit.
+            // Do not touch ProductType, CPU/hardware model, ModelNumber,
+            // green-tea/not-green-tea, or the generative-model capability here.
             cache[regionCodeKey] = "LL"
             cache[sysconfigRegionInfoKey] = "LL/A"
             cache[regulatoryModelKey] = targetRegulatoryModel
             current["CacheExtra"] = cache
 
-            let outputFormat: PropertyListSerialization.PropertyListFormat =
-                (sourceFormat == .xml || sourceFormat == .binary) ? sourceFormat : .binary
-            let patchedData = try PropertyListSerialization.data(
-                fromPropertyList: current,
-                format: outputFormat,
-                options: 0
-            )
+            try access.saveGestalt(current)
 
-            // GestaltEdit deliberately writes the existing file in place with
-            // truncate/write/fsync semantics. Replacing the file atomically creates
-            // a new inode and may be regenerated from hardware-backed identity on boot.
-            try writeInPlace(patchedData, originalData: currentData, at: targetURL)
-
-            let verifyData = try Data(contentsOf: targetURL)
-            guard !verifyData.isEmpty,
-                  let verify = try PropertyListSerialization.propertyList(from: verifyData, options: [], format: nil) as? [String: Any],
+            guard let verify = try access.readGestalt() as? [String: Any],
                   let verifyCache = verify["CacheExtra"] as? [String: Any],
                   verifyCache[regionCodeKey] as? String == "LL",
                   verifyCache[sysconfigRegionInfoKey] as? String == "LL/A",
@@ -215,13 +153,21 @@ struct GestaltEditCompatibilityView: View {
             }
 
             mobileGestaltValid = true
-            status = "\(L("Verified")): LL · LL/A · \(targetRegulatoryModel)\n\(L("In-place write verified. MobileGestalt is valid. Restart the iPhone to test persistence."))"
+            status = "\(L("Verified")): LL · LL/A · \(targetRegulatoryModel)\n\(L("GestaltEdit source write verified. MobileGestalt is valid. Restart the iPhone to apply the change."))"
             loadStatePreservingStatus()
         } catch {
-            mobileGestaltValid = isCurrentGestaltValid()
+            mobileGestaltValid = sourceGestaltStillValid()
             let warning = mobileGestaltValid ? "" : "\n\(L("MobileGestalt is invalid or empty. Do not restart the device."))"
             status = "\(L("Failed")): \(error.localizedDescription)\(warning)"
         }
+    }
+
+    private func saveBackup(_ data: Data) throws {
+        let directory = URL(fileURLWithPath: AppPaths.backups)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let stamp = Int(Date().timeIntervalSince1970)
+        let url = directory.appendingPathComponent("GestaltEditSource-\(stamp).plist")
+        try data.write(to: url, options: [.atomic])
     }
 
     private func loadStatePreservingStatus() {
@@ -230,32 +176,12 @@ struct GestaltEditCompatibilityView: View {
         status = savedStatus
     }
 
-    private func writeInPlace(_ data: Data, originalData: Data, at targetURL: URL) throws {
-        let handle: FileHandle
+    private func sourceGestaltStillValid() -> Bool {
         do {
-            handle = try FileHandle(forWritingTo: targetURL)
+            return (try access.readGestalt() as? [String: Any])?["CacheExtra"] is [String: Any]
         } catch {
-            throw CompatibilityError.inPlaceWriteFailed(error.localizedDescription)
+            return false
         }
-
-        do {
-            try handle.truncate(atOffset: 0)
-            try handle.write(contentsOf: data)
-            try handle.synchronize()
-            try handle.close()
-        } catch {
-            // Best-effort restore using the same inode before reporting failure.
-            try? handle.truncate(atOffset: 0)
-            try? handle.write(contentsOf: originalData)
-            try? handle.synchronize()
-            try? handle.close()
-            throw CompatibilityError.inPlaceWriteFailed(error.localizedDescription)
-        }
-    }
-
-    private func isCurrentGestaltValid() -> Bool {
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: TweakPaths.gestalt)), !data.isEmpty else { return false }
-        return (try? PropertyListSerialization.propertyList(from: data, options: [], format: nil)) != nil
     }
 
     private func display(_ value: Any?) -> String {
@@ -266,6 +192,7 @@ struct GestaltEditCompatibilityView: View {
         return String(describing: value)
     }
 
+    /// Same supported-iPhone mapping used by GestaltEdit.
     private func usRegulatoryModel(for productType: String) -> String? {
         let base = productType.split(separator: "-").first.map(String.init) ?? productType
         switch base {
@@ -293,20 +220,14 @@ struct GestaltEditCompatibilityView: View {
 
 private enum CompatibilityError: LocalizedError {
     case invalidGestalt
-    case missingOriginalBackup
     case verificationFailed
-    case inPlaceWriteFailed(String)
 
     var errorDescription: String? {
         switch self {
         case .invalidGestalt:
             return L("MobileGestalt is empty or invalid. Do not restart the device.")
-        case .missingOriginalBackup:
-            return L("The original SavedGestalt.plist backup is missing or invalid.")
         case .verificationFailed:
             return L("The compatibility values were written but did not verify correctly.")
-        case .inPlaceWriteFailed(let message):
-            return "\(L("In-place MobileGestalt write failed")): \(message)"
         }
     }
 }
