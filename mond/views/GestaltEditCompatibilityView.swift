@@ -71,7 +71,7 @@ struct GestaltEditCompatibilityView: View {
                         .textSelection(.enabled)
                 }
             } footer: {
-                Text(L("Before writing, Mond saves the current plist and restores extra identity fields previously changed by Mond from the original backup. After the three GestaltEdit-compatible values are written, the file is read back and validated. Only restart the iPhone after the result says Verified and MobileGestalt remains valid."))
+                Text(L("Before writing, Mond saves the current plist and restores extra identity fields previously changed by Mond from the original backup. It then preserves the original plist format and writes the existing MobileGestalt file in place, matching GestaltEdit's write behavior instead of replacing the file. Only restart the iPhone after the result says Verified and MobileGestalt remains valid."))
             }
         }
         .navigationTitle(L("GestaltEdit AI Mode"))
@@ -135,11 +135,18 @@ struct GestaltEditCompatibilityView: View {
         }
 
         do {
-            let fm = FileManager.default
             let targetURL = URL(fileURLWithPath: TweakPaths.gestalt)
             let currentData = try Data(contentsOf: targetURL)
-            guard !currentData.isEmpty,
-                  var current = try PropertyListSerialization.propertyList(from: currentData, options: [], format: nil) as? [String: Any],
+            guard !currentData.isEmpty else {
+                throw CompatibilityError.invalidGestalt
+            }
+
+            var sourceFormat = PropertyListSerialization.PropertyListFormat.binary
+            guard var current = try PropertyListSerialization.propertyList(
+                from: currentData,
+                options: [],
+                format: &sourceFormat
+            ) as? [String: Any],
                   var cache = current["CacheExtra"] as? [String: Any] else {
                 throw CompatibilityError.invalidGestalt
             }
@@ -184,8 +191,18 @@ struct GestaltEditCompatibilityView: View {
             cache[regulatoryModelKey] = targetRegulatoryModel
             current["CacheExtra"] = cache
 
-            let patchedData = try PropertyListSerialization.data(fromPropertyList: current, format: .xml, options: 0)
-            try atomicReplace(patchedData, at: targetURL)
+            let outputFormat: PropertyListSerialization.PropertyListFormat =
+                (sourceFormat == .xml || sourceFormat == .binary) ? sourceFormat : .binary
+            let patchedData = try PropertyListSerialization.data(
+                fromPropertyList: current,
+                format: outputFormat,
+                options: 0
+            )
+
+            // GestaltEdit deliberately writes the existing file in place with
+            // truncate/write/fsync semantics. Replacing the file atomically creates
+            // a new inode and may be regenerated from hardware-backed identity on boot.
+            try writeInPlace(patchedData, originalData: currentData, at: targetURL)
 
             let verifyData = try Data(contentsOf: targetURL)
             guard !verifyData.isEmpty,
@@ -198,7 +215,7 @@ struct GestaltEditCompatibilityView: View {
             }
 
             mobileGestaltValid = true
-            status = "\(L("Verified")): LL · LL/A · \(targetRegulatoryModel)\n\(L("MobileGestalt is valid. GestaltEdit's implementation expects a full iPhone restart after a verified write."))"
+            status = "\(L("Verified")): LL · LL/A · \(targetRegulatoryModel)\n\(L("In-place write verified. MobileGestalt is valid. Restart the iPhone to test persistence."))"
             loadStatePreservingStatus()
         } catch {
             mobileGestaltValid = isCurrentGestaltValid()
@@ -213,17 +230,26 @@ struct GestaltEditCompatibilityView: View {
         status = savedStatus
     }
 
-    private func atomicReplace(_ data: Data, at targetURL: URL) throws {
-        let fm = FileManager.default
-        let tempURL = targetURL.deletingLastPathComponent()
-            .appendingPathComponent(".\(targetURL.lastPathComponent).\(UUID().uuidString).tmp")
-        try data.write(to: tempURL, options: [.withoutOverwriting])
-        defer { try? fm.removeItem(at: tempURL) }
+    private func writeInPlace(_ data: Data, originalData: Data, at targetURL: URL) throws {
+        let handle: FileHandle
+        do {
+            handle = try FileHandle(forWritingTo: targetURL)
+        } catch {
+            throw CompatibilityError.inPlaceWriteFailed(error.localizedDescription)
+        }
 
-        if fm.fileExists(atPath: targetURL.path) {
-            _ = try fm.replaceItemAt(targetURL, withItemAt: tempURL)
-        } else {
-            try fm.moveItem(at: tempURL, to: targetURL)
+        do {
+            try handle.truncate(atOffset: 0)
+            try handle.write(contentsOf: data)
+            try handle.synchronize()
+            try handle.close()
+        } catch {
+            // Best-effort restore using the same inode before reporting failure.
+            try? handle.truncate(atOffset: 0)
+            try? handle.write(contentsOf: originalData)
+            try? handle.synchronize()
+            try? handle.close()
+            throw CompatibilityError.inPlaceWriteFailed(error.localizedDescription)
         }
     }
 
@@ -269,6 +295,7 @@ private enum CompatibilityError: LocalizedError {
     case invalidGestalt
     case missingOriginalBackup
     case verificationFailed
+    case inPlaceWriteFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -278,6 +305,8 @@ private enum CompatibilityError: LocalizedError {
             return L("The original SavedGestalt.plist backup is missing or invalid.")
         case .verificationFailed:
             return L("The compatibility values were written but did not verify correctly.")
+        case .inPlaceWriteFailed(let message):
+            return "\(L("In-place MobileGestalt write failed")): \(message)"
         }
     }
 }
